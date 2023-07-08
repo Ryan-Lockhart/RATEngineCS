@@ -24,19 +24,31 @@ namespace rat
                 this.y = y;
             }
 
-            public static implicit operator System.Numerics.Vector2(Point point) => new System.Numerics.Vector2(point.x, point.y);
+            public static readonly Point Zero = new Point(0, 0);
 
-            public static Point operator +(Point lhs, Point rhs) => new Point(lhs.x + rhs.x, lhs.y + rhs.y);
+            public static readonly Point West = new Point(-1, 0);
+            public static readonly Point East = new Point(1, 0);
 
-            public static Point operator -(Point lhs, Point rhs) => new Point(lhs.x - rhs.x, lhs.y - rhs.y);
+            public static readonly Point North = new Point(0, -1);
+            public static readonly Point South = new Point(0, 1);
 
-            public static Point operator *(Point lhs, Point rhs) => new Point(lhs.x * rhs.x, lhs.y * rhs.y);
-            public static Point operator *(Point lhs, double scalar) => new Point((long)(lhs.x * scalar), (long)(lhs.y * scalar));
+            public static implicit operator System.Numerics.Vector2(in Point point) => new System.Numerics.Vector2(point.x, point.y);
 
-            public static Point operator /(Point lhs, Point rhs) => new Point(lhs.x / rhs.x, lhs.y / rhs.y);
-            public static Point operator /(Point lhs, double scalar) => new Point((long)(lhs.x / scalar), (long)(lhs.y / scalar));
+            public static Point operator +(in Point lhs, in Point rhs) => new Point(lhs.x + rhs.x, lhs.y + rhs.y);
+            public static Point operator +(in Point lhs, in Size rhs) => new Point(lhs.x + rhs.width, lhs.y + rhs.height);
 
-            public static Point operator *(Point a, Size b) => new Point(a.x * b.width, a.y * b.height);
+            public static Point operator -(in Point lhs, in Point rhs) => new Point(lhs.x - rhs.x, lhs.y - rhs.y);
+            public static Point operator -(in Point lhs, in Size rhs) => new Point(lhs.x - rhs.width, lhs.y - rhs.height);
+
+            public static Point operator *(in Point lhs, in Point rhs) => new Point(lhs.x * rhs.x, lhs.y * rhs.y);
+            public static Point operator *(in Point lhs, in Size rhs) => new Point(lhs.x * rhs.width, lhs.y * rhs.height);
+            public static Point operator *(in Point lhs, double scalar) => new Point((long)(lhs.x * scalar), (long)(lhs.y * scalar));
+
+            public static Point operator /(in Point lhs, in Point rhs) => new Point(lhs.x / rhs.x, lhs.y / rhs.y);
+            public static Point operator /(in Point lhs, in Size rhs) => new Point(lhs.x / rhs.width, lhs.y / rhs.height);
+            public static Point operator /(in Point lhs, double scalar) => new Point((long)(lhs.x / scalar), (long)(lhs.y / scalar));
+
+            public static explicit operator Coord(in Point p) => new Coord(p.x, p.y, 0);
         }
 
         /// <summary>
@@ -53,20 +65,38 @@ namespace rat
                 this.z = z;
             }
 
-            public static implicit operator System.Numerics.Vector3(Coord coord)
-            {
-                return new System.Numerics.Vector3(coord.x, coord.y, coord.z);
-            }
+            public static readonly Coord Zero = new Coord(0, 0, 0);
 
-            public static Coord operator +(Coord lhs, Coord rhs) => new Coord(lhs.x + rhs.x, lhs.y + rhs.y, lhs.z + rhs.z);
+            public static readonly Coord Up = new Coord(0, 0, 1);
+            public static readonly Coord Down = new Coord(0, 0, -1);
 
-            public static Coord operator -(Coord lhs, Coord rhs) => new Coord(lhs.x - rhs.x, lhs.y - rhs.y, lhs.z + rhs.z);
+            public static readonly Coord West = new Coord(-1, 0, 0);
+            public static readonly Coord East = new Coord(1, 0, 0);
 
-            public static Coord operator *(Coord lhs, Coord rhs) => new Coord(lhs.x * rhs.x, lhs.y * rhs.y, lhs.z + rhs.z);
-            public static Coord operator *(Coord lhs, double scalar) => new Coord((long)(lhs.x * scalar), (long)(lhs.y * scalar), (long)(lhs.z * scalar));
+            public static readonly Coord North = new Coord(0, -1, 0);
+            public static readonly Coord South = new Coord(0, 1, 0);
 
-            public static Coord operator /(Coord lhs, Coord rhs) => new Coord(lhs.x / rhs.x, lhs.y / rhs.y, lhs.z / rhs.z);
-            public static Coord operator /(Coord lhs, double scalar) => new Coord((long)(lhs.x / scalar), (long)(lhs.y / scalar), (long)(lhs.z * scalar));
+            public static implicit operator System.Numerics.Vector3(in Coord coord) => new System.Numerics.Vector3(coord.x, coord.y, coord.z);
+
+            public static Coord operator +(in Coord lhs, in Coord rhs) => new Coord(lhs.x + rhs.x, lhs.y + rhs.y, lhs.z + rhs.z);
+            public static Coord operator +(in Coord lhs, in Size rhs) => new Coord(lhs.x + rhs.width, lhs.y + rhs.height, lhs.z);
+            public static Coord operator +(in Coord lhs, in Bounds rhs) => new Coord(lhs.x + rhs.width, lhs.y + rhs.height, lhs.z + rhs.depth);
+
+            public static Coord operator -(in Coord lhs, in Coord rhs) => new Coord(lhs.x - rhs.x, lhs.y - rhs.y, lhs.z + rhs.z);
+            public static Coord operator -(in Coord lhs, in Size rhs) => new Coord(lhs.x - rhs.width, lhs.y - rhs.height, lhs.z);
+            public static Coord operator -(in Coord lhs, in Bounds rhs) => new Coord(lhs.x - rhs.width, lhs.y - rhs.height, lhs.z + rhs.depth);
+
+            public static Coord operator *(in Coord lhs, in Coord rhs) => new Coord(lhs.x * rhs.x, lhs.y * rhs.y, lhs.z + rhs.z);
+            public static Coord operator *(in Coord lhs, in Size rhs) => new Coord(lhs.x * rhs.width, lhs.y * rhs.height, lhs.z);
+            public static Coord operator *(in Coord lhs, in Bounds rhs) => new Coord(lhs.x * rhs.width, lhs.y * rhs.height, lhs.z + rhs.depth);
+            public static Coord operator *(in Coord lhs, double scalar) => new Coord((long)(lhs.x * scalar), (long)(lhs.y * scalar), (long)(lhs.z * scalar));
+
+            public static Coord operator /(in Coord lhs, in Coord rhs) => new Coord(lhs.x / rhs.x, lhs.y / rhs.y, lhs.z / rhs.z);
+            public static Coord operator /(in Coord lhs, in Size rhs) => new Coord(lhs.x / rhs.width, lhs.y / rhs.height, lhs.z);
+            public static Coord operator /(in Coord lhs, in Bounds rhs) => new Coord(lhs.x / rhs.width, lhs.y / rhs.height, lhs.z / rhs.depth);
+            public static Coord operator /(in Coord lhs, double scalar) => new Coord((long)(lhs.x / scalar), (long)(lhs.y / scalar), (long)(lhs.z * scalar));
+
+            public static implicit operator Point(in Coord c) => new Point(c.x, c.y);
         }
 
         /// <summary>
@@ -82,20 +112,31 @@ namespace rat
                 this.height = height;
             }
 
+            public static readonly Size Zero = new Size(0, 0);
+            public static readonly Size One = new Size(1, 1);
+            public static readonly Size Two = new Size(2, 2);
+            public static readonly Size Three = new Size(3, 3);
+            public static readonly Size Four = new Size(4, 4);
+            public static readonly Size Eight = new Size(8, 8);
+            public static readonly Size Sixteen = new Size(16, 16);
+            public static readonly Size Thritytwo = new Size(32, 32);
+
             public uint Area()
             {
                 return width * height;
             }
 
-            public static Size operator +(Size lhs, Size rhs) => new Size(lhs.width + rhs.width, lhs.height + rhs.height);
+            public static Size operator +(in Size lhs, in Size rhs) => new Size(lhs.width + rhs.width, lhs.height + rhs.height);
 
-            public static Size operator -(Size lhs, Size rhs) => new Size(lhs.width - rhs.width, lhs.height - rhs.height);
+            public static Size operator -(in Size lhs, in Size rhs) => new Size(lhs.width - rhs.width, lhs.height - rhs.height);
 
-            public static Size operator *(Size lhs, Size rhs) => new Size(lhs.width * rhs.width, lhs.height * rhs.height);
-            public static Size operator *(Size lhs, double scalar) => new Size((uint)(lhs.width * scalar), (uint)(lhs.height * scalar));
+            public static Size operator *(in Size lhs, in Size rhs) => new Size(lhs.width * rhs.width, lhs.height * rhs.height);
+            public static Size operator *(in Size lhs, double scalar) => new Size((uint)(lhs.width * scalar), (uint)(lhs.height * scalar));
 
-            public static Size operator /(Size lhs, Size rhs) => new Size(lhs.width / rhs.width, lhs.height / rhs.height);
-            public static Size operator /(Size lhs, double scalar) => new Size((uint)(lhs.width / scalar), (uint)(lhs.height / scalar));
+            public static Size operator /(in Size lhs, in Size rhs) => new Size(lhs.width / rhs.width, lhs.height / rhs.height);
+            public static Size operator /(in Size lhs, double scalar) => new Size((uint)(lhs.width / scalar), (uint)(lhs.height / scalar));
+
+            public static explicit operator Bounds(in Size s) => new Bounds(s.width, s.height, 0);
         }
 
         /// <summary>
@@ -112,6 +153,15 @@ namespace rat
                 this.depth = depth;
             }
 
+            public static readonly Bounds Zero = new Bounds(0, 0, 0);
+            public static readonly Bounds One = new Bounds(1, 1, 1);
+            public static readonly Bounds Two = new Bounds(2, 2, 2);
+            public static readonly Bounds Three = new Bounds(3, 3, 3);
+            public static readonly Bounds Four = new Bounds(4, 4, 4);
+            public static readonly Bounds Eight = new Bounds(8, 8, 8);
+            public static readonly Bounds Sixteen = new Bounds(16, 16, 16);
+            public static readonly Bounds Thritytwo = new Bounds(32, 32, 32);
+
             public uint Area()
             {
                 return width * height;
@@ -122,15 +172,17 @@ namespace rat
                 return width * height * depth;
             }
 
-            public static Bounds operator +(Bounds lhs, Bounds rhs) => new Bounds(lhs.width + rhs.width, lhs.height + rhs.height, lhs.depth + rhs.depth);
+            public static Bounds operator +(in Bounds lhs, in Bounds rhs) => new Bounds(lhs.width + rhs.width, lhs.height + rhs.height, lhs.depth + rhs.depth);
 
-            public static Bounds operator -(Bounds lhs, Bounds rhs) => new Bounds(lhs.width - rhs.width, lhs.height - rhs.height, lhs.depth + rhs.depth);
+            public static Bounds operator -(in Bounds lhs, in Bounds rhs) => new Bounds(lhs.width - rhs.width, lhs.height - rhs.height, lhs.depth + rhs.depth);
 
-            public static Bounds operator *(Bounds lhs, Bounds rhs) => new Bounds(lhs.width * rhs.width, lhs.height * rhs.height, lhs.depth + rhs.depth);
-            public static Bounds operator *(Bounds lhs, double scalar) => new Bounds((uint)(lhs.width * scalar), (uint)(lhs.height * scalar), (uint)(lhs.depth * scalar));
+            public static Bounds operator *(in Bounds lhs, in Bounds rhs) => new Bounds(lhs.width * rhs.width, lhs.height * rhs.height, lhs.depth + rhs.depth);
+            public static Bounds operator *(in Bounds lhs, double scalar) => new Bounds((uint)(lhs.width * scalar), (uint)(lhs.height * scalar), (uint)(lhs.depth * scalar));
 
-            public static Bounds operator /(Bounds lhs, Bounds rhs) => new Bounds(lhs.width / rhs.width, lhs.height / rhs.height, lhs.depth / rhs.depth);
-            public static Bounds operator /(Bounds lhs, double scalar) => new Bounds((uint)(lhs.width / scalar), (uint)(lhs.height / scalar), (uint)(lhs.depth * scalar));
+            public static Bounds operator /(in Bounds lhs, in Bounds rhs) => new Bounds(lhs.width / rhs.width, lhs.height / rhs.height, lhs.depth / rhs.depth);
+            public static Bounds operator /(in Bounds lhs, double scalar) => new Bounds((uint)(lhs.width / scalar), (uint)(lhs.height / scalar), (uint)(lhs.depth * scalar));
+
+            public static implicit operator Size(in Bounds b) => new Size(b.width, b.height);
         }
 
         /// <summary>
@@ -141,16 +193,18 @@ namespace rat
             public Point position;
             public Size size;
 
-            public Rect(Point position, Size size)
+            public Rect(in Point position, in Size size)
             {
                 this.position = position;
                 this.size = size;
             }
 
-            public static implicit operator Raylib_cs.Rectangle(Rect rect)
+            public static implicit operator Raylib_cs.Rectangle(in Rect rect)
             {
                 return new Raylib_cs.Rectangle(rect.position.x, rect.position.y, rect.size.width, rect.size.height);
             }
+
+            public static explicit operator Cuboid(in Rect r) => new Cuboid((Coord)r.position, (Bounds)r.size);
         }
 
         /// <summary>
@@ -159,13 +213,15 @@ namespace rat
         public struct Cuboid
         {
             public Coord position;
-            public Bounds bounds;
+            public Bounds size;
 
-            public Cuboid(Coord position, Bounds bounds)
+            public Cuboid(in Coord position, in Bounds size)
             {
                 this.position = position;
-                this.bounds = bounds;
+                this.size = size;
             }
+
+            public static implicit operator Rect(in Cuboid c) => new Rect(c.position, c.size);
         }
 
         /// <summary>
@@ -177,7 +233,7 @@ namespace rat
             public Size size;
             public double rotation;
 
-            public Transform2D(Point position, Size size, double rotation)
+            public Transform2D(in Point position, in Size size, double rotation)
             {
                 this.position = position;
                 this.size = size;
@@ -266,7 +322,7 @@ namespace rat
                 this.alpha = (byte)Math.Max(0, Math.Min(255, Math.Floor(alpha * 256.0)));
             }
 
-            public static implicit operator Raylib_cs.Color(Color color)
+            public static implicit operator Raylib_cs.Color(in Color color)
             {
                 return new Raylib_cs.Color(color.red, color.green, color.blue, color.alpha);
             }
@@ -277,7 +333,7 @@ namespace rat
             public byte index;
             public Color color;
 
-            public Glyph(byte index, Color color)
+            public Glyph(byte index, in Color color)
             {
                 this.index = index;
                 this.color = color;
@@ -290,7 +346,7 @@ namespace rat
 
             public Glyph foreground, background;
 
-            public Cell(Coord position, Glyph foreground, Glyph background)
+            public Cell(in Coord position, in Glyph foreground, in Glyph background)
             {
                 this.position = position;
                 this.foreground = foreground;
@@ -324,7 +380,7 @@ namespace rat
                 this.capitalized = capitalized;
             }
 
-            public static explicit operator ColoredLetter(Letter letter)
+            public static explicit operator ColoredLetter(in Letter letter)
             {
                 return new ColoredLetter(letter, new Color());
             }
@@ -335,13 +391,13 @@ namespace rat
             public Letter letter;
             public Color color;
 
-            public ColoredLetter(Letter letter, Color color)
+            public ColoredLetter(in Letter letter, in Color color)
             {
                 this.letter = letter;
                 this.color = color;
             }
 
-            public static explicit operator Letter(ColoredLetter letter)
+            public static explicit operator Letter(in ColoredLetter letter)
             {
                 return letter.letter;
             }

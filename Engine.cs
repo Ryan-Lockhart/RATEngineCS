@@ -32,8 +32,8 @@ namespace rat
         private Coord _actionPosition;
 
         private List<Actor> _actors;
-        private std::vector<Actor> _living;
-        private std::vector<Actor> _dead;
+        private List<Actor> _living;
+        private List<Actor> _dead;
 
         private DateTime _lastUpdateTime;
         private DateTime _lastSummonTime;
@@ -71,7 +71,7 @@ namespace rat
 
             TimeSpan deltaTime;
 
-            _map = new Map(mapSize, { 16, 16, 1 });
+            _map = new Map(mapSize, Bounds.Sixteen);
 
             _cursor = new Cursor(*ptr_Map, { 0, 0 }, { 1, 1 });
 

@@ -1,12 +1,17 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Drawing;
 using System.IO;
 using System.Linq;
+using System.Reflection;
 using System.Text;
 using System.Threading.Tasks;
 
 using rat.Primitives;
 using Raylib_cs;
+using Color = rat.Primitives.Color;
+using Point = rat.Primitives.Point;
+using Size = rat.Primitives.Size;
 
 namespace rat
 {
@@ -75,9 +80,19 @@ namespace rat
             Raylib.UnloadTexture(_texture);
         }
 
-        public void DrawGlyph(Point position, Glyph glyph, bool useGrid = true)
+        public void DrawGlyph(byte index, in Color color, in Point position, bool useGrid = true)
+        {
+            Raylib.DrawTextureRec(_texture, GetRect(index), useGrid ? position * _glyphSize : position, color);
+        }
+
+        public void DrawGlyph(in Glyph glyph, in Point position, bool useGrid = true)
         {
             Raylib.DrawTextureRec(_texture, GetRect(glyph.index), useGrid ? position * _glyphSize : position, glyph.color);
+        }
+
+        public void DrawGlyph(in Glyph glyph, in Rect rect)
+        {
+            Raylib.DrawTexturePro(_texture, GetRect(glyph.index), rect, Point.Zero, 0.0f, glyph.color);
         }
 
         private Rect GetRect(uint index) => _rects[index];

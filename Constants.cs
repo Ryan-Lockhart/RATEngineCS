@@ -10,6 +10,55 @@ namespace rat
 {
     namespace Constants
     {
+        public class Settings
+        {
+            /// <summary>
+            /// The maximum amount of messages that can be displayed in the message log
+            /// </summary>
+            public static readonly int MaxMessages = 21;
+
+            /// <summary>
+            /// Minimum time (in milliseconds) between AI updates when control flow is unblocked
+            /// </summary>
+            public static readonly ulong MinimumUpdateTime = 500;
+            /// <summary>
+            /// Minimum time (in milliseconds) between summon wave checks
+            /// </summary>
+            public static readonly ulong MinimumSummonTime = 30000;
+
+            public static readonly string WindowTitle = "Dungeon Sandbox (RATEngineCS) v0.001 07/08/2023";
+
+            /// <summary>
+            /// Allows the controlled actor to occupy solid cells
+            /// </summary>
+            public static readonly bool NoclipMode = false;
+
+            /// <summary>
+            /// The number of tiles the "camera" will traverse with unlocked camera movement
+            /// </summary>
+            public static readonly int CameraSpeed = 5;
+
+            /// <summary>
+            /// The number of enemies that are available for generation
+            /// </summary>
+            public static readonly int MaxEnemyTypes = 6;
+
+            /// <summary>
+            /// The eight octants used for shadowcasting
+            /// </summary>
+            public static readonly Octant[] Octants =
+            {
+                new Octant(0, 1, 1, 0),
+                new Octant(1, 0, 0, 1),
+                new Octant(0, -1, 1, 0),
+                new Octant(-1, 0, 0, 1),
+                new Octant(0, -1, -1, 0),
+                new Octant(-1, 0, 0, -1),
+                new Octant(0, 1, -1, 0),
+                new Octant(1, 0, 0, -1)
+            };
+        }
+
         public class GlyphSets
         {
             public static readonly GlyphSetInfo DefaultUIGlyphs = new GlyphSetInfo("Assets\\Glyphs\\glyphs_12x12.png", new Size(12, 12), new Size(16, 16));
