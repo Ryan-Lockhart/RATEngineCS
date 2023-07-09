@@ -26,22 +26,34 @@ namespace rat
             /// </summary>
             public static readonly ulong MinimumSummonTime = 30000;
 
-            public static readonly string WindowTitle = "Dungeon Sandbox (RATEngineCS) v0.001 07/08/2023";
+            public static readonly string WindowTitle = "Dungeon Sandbox (RATEngineCS) v0.001 07/09/2023";
+
+            public static readonly Bounds MapSize = new Bounds(256, 256, 1);
 
             /// <summary>
             /// Allows the controlled actor to occupy solid cells
             /// </summary>
-            public static readonly bool NoclipMode = false;
+            public static readonly bool AllowNoclip = false;
+            /// <summary>
+            /// Allows the resurrection of deceased actors
+            /// </summary>
+            public static readonly bool AllowResurrection = false;
 
             /// <summary>
             /// The number of tiles the "camera" will traverse with unlocked camera movement
             /// </summary>
             public static readonly int CameraSpeed = 5;
 
+            public static bool UseCorpseLimit = true;
+            public static int CorpseLimit = 1;
+
             /// <summary>
             /// The number of enemies that are available for generation
             /// </summary>
-            public static readonly int MaxEnemyTypes = 6;
+            public static readonly int MaximumEnemyTypes = 6;
+
+            public static readonly int MinimumEnemies = 10;
+            public static readonly int MaximumEnemies = 50;
 
             /// <summary>
             /// The eight octants used for shadowcasting
@@ -100,8 +112,11 @@ namespace rat
             private static readonly double _UIToMap = 16.0 / 12.0;
             private static readonly double _MapToUI = 12.0 / 16.0;
 
-            public static Size UIToMap(Size size) => new Size((uint)(size.width * _UIToMap), (uint)(size.height * _UIToMap));
-            public static Size MapToUI(Size size) => new Size((uint)(size.width * _MapToUI), (uint)(size.height * _MapToUI));
+            public static Point UIToMap(in Point position) => new Point((long)(position.x * _UIToMap), (long)(position.y * _UIToMap));
+            public static Point MapToUI(in Point position) => new Point((long)(position.x * _MapToUI), (long)(position.y * _MapToUI));
+
+            public static Size UIToMap(in Size size) => new Size((uint)(size.width * _UIToMap), (uint)(size.height * _UIToMap));
+            public static Size MapToUI(in Size size) => new Size((uint)(size.width * _MapToUI), (uint)(size.height * _MapToUI));
         }
 
         /// <summary>
@@ -211,7 +226,7 @@ namespace rat
         }
 
         /// <summary>
-        /// An organizational namespace containitng constant glyphs for use with glyph sets
+        /// An organizational class containing constant glyphs for use with glyph sets
         /// </summary>
 	    public class Glyphs
         {
@@ -255,5 +270,23 @@ namespace rat
 
             }
         }
+
+	    /// <summary>
+        /// An organizaitonal class containing the nine possible constant text alignments
+        /// </summary>
+	    public class Alignments
+	    {
+            public static readonly TextAlignment Centered = new TextAlignment(VerticalAlignment.Center, HorizontalAlignment.Center);
+            public static readonly TextAlignment LeftCentered = new TextAlignment(VerticalAlignment.Center, HorizontalAlignment.Left);
+            public static readonly TextAlignment RightCentered = new TextAlignment(VerticalAlignment.Center, HorizontalAlignment.Right);
+
+            public static readonly TextAlignment UpperCentered = new TextAlignment(VerticalAlignment.Upper, HorizontalAlignment.Center);
+            public static readonly TextAlignment UpperLeft = new TextAlignment(VerticalAlignment.Upper, HorizontalAlignment.Left);
+            public static readonly TextAlignment UpperRight = new TextAlignment(VerticalAlignment.Upper, HorizontalAlignment.Right);
+
+            public static readonly TextAlignment LowerCentered = new TextAlignment(VerticalAlignment.Lower, HorizontalAlignment.Center);
+            public static readonly TextAlignment LowerLeft = new TextAlignment(VerticalAlignment.Lower, HorizontalAlignment.Left);
+            public static readonly TextAlignment LowerRight = new TextAlignment(VerticalAlignment.Lower, HorizontalAlignment.Right);
+	    }
     }
 }

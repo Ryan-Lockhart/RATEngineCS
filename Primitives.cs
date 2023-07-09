@@ -33,6 +33,7 @@ namespace rat
             public static readonly Point South = new Point(0, 1);
 
             public static implicit operator System.Numerics.Vector2(in Point point) => new System.Numerics.Vector2(point.x, point.y);
+            public static implicit operator Point(in System.Numerics.Vector2 vector) => new Point((long)vector.X, (long)vector.Y);
 
             public static Point operator +(in Point lhs, in Point rhs) => new Point(lhs.x + rhs.x, lhs.y + rhs.y);
             public static Point operator +(in Point lhs, in Size rhs) => new Point(lhs.x + rhs.width, lhs.y + rhs.height);
@@ -48,7 +49,14 @@ namespace rat
             public static Point operator /(in Point lhs, in Size rhs) => new Point(lhs.x / rhs.width, lhs.y / rhs.height);
             public static Point operator /(in Point lhs, double scalar) => new Point((long)(lhs.x / scalar), (long)(lhs.y / scalar));
 
+            public static bool operator ==(in Point lhs, in Point rhs) => lhs.x == rhs.x && lhs.y == rhs.y;
+            public static bool operator !=(in Point lhs, in Point rhs) => lhs.x != rhs.x && lhs.y != rhs.y;
+
+            public override bool Equals(object? obj) => obj is Point point && x == point.x && y == point.y;
+            public override int GetHashCode() => HashCode.Combine(x, y);
+
             public static explicit operator Coord(in Point p) => new Coord(p.x, p.y, 0);
+            public static Coord ToCoord(in Point p, long z) => new Coord(p.x, p.y, z);
         }
 
         /// <summary>
@@ -77,24 +85,35 @@ namespace rat
             public static readonly Coord South = new Coord(0, 1, 0);
 
             public static implicit operator System.Numerics.Vector3(in Coord coord) => new System.Numerics.Vector3(coord.x, coord.y, coord.z);
+            public static implicit operator Coord(in System.Numerics.Vector3 vector) => new Coord((long)vector.X, (long)vector.Y, (long)vector.Z);
 
             public static Coord operator +(in Coord lhs, in Coord rhs) => new Coord(lhs.x + rhs.x, lhs.y + rhs.y, lhs.z + rhs.z);
+            public static Coord operator +(in Coord lhs, in Point rhs) => new Coord(lhs.x + rhs.x, lhs.y + rhs.y, lhs.z);
             public static Coord operator +(in Coord lhs, in Size rhs) => new Coord(lhs.x + rhs.width, lhs.y + rhs.height, lhs.z);
             public static Coord operator +(in Coord lhs, in Bounds rhs) => new Coord(lhs.x + rhs.width, lhs.y + rhs.height, lhs.z + rhs.depth);
 
             public static Coord operator -(in Coord lhs, in Coord rhs) => new Coord(lhs.x - rhs.x, lhs.y - rhs.y, lhs.z + rhs.z);
+            public static Coord operator -(in Coord lhs, in Point rhs) => new Coord(lhs.x - rhs.x, lhs.y - rhs.y, lhs.z);
             public static Coord operator -(in Coord lhs, in Size rhs) => new Coord(lhs.x - rhs.width, lhs.y - rhs.height, lhs.z);
             public static Coord operator -(in Coord lhs, in Bounds rhs) => new Coord(lhs.x - rhs.width, lhs.y - rhs.height, lhs.z + rhs.depth);
 
             public static Coord operator *(in Coord lhs, in Coord rhs) => new Coord(lhs.x * rhs.x, lhs.y * rhs.y, lhs.z + rhs.z);
+            public static Coord operator *(in Coord lhs, in Point rhs) => new Coord(lhs.x * rhs.x, lhs.y * rhs.y, lhs.z);
             public static Coord operator *(in Coord lhs, in Size rhs) => new Coord(lhs.x * rhs.width, lhs.y * rhs.height, lhs.z);
             public static Coord operator *(in Coord lhs, in Bounds rhs) => new Coord(lhs.x * rhs.width, lhs.y * rhs.height, lhs.z + rhs.depth);
             public static Coord operator *(in Coord lhs, double scalar) => new Coord((long)(lhs.x * scalar), (long)(lhs.y * scalar), (long)(lhs.z * scalar));
 
             public static Coord operator /(in Coord lhs, in Coord rhs) => new Coord(lhs.x / rhs.x, lhs.y / rhs.y, lhs.z / rhs.z);
+            public static Coord operator /(in Coord lhs, in Point rhs) => new Coord(lhs.x / rhs.x, lhs.y / rhs.y, lhs.z);
             public static Coord operator /(in Coord lhs, in Size rhs) => new Coord(lhs.x / rhs.width, lhs.y / rhs.height, lhs.z);
             public static Coord operator /(in Coord lhs, in Bounds rhs) => new Coord(lhs.x / rhs.width, lhs.y / rhs.height, lhs.z / rhs.depth);
             public static Coord operator /(in Coord lhs, double scalar) => new Coord((long)(lhs.x / scalar), (long)(lhs.y / scalar), (long)(lhs.z * scalar));
+
+            public static bool operator ==(in Coord lhs, in Coord rhs) => lhs.x == rhs.x && lhs.y == rhs.y && lhs.z == rhs.z;
+            public static bool operator !=(in Coord lhs, in Coord rhs) => lhs.x != rhs.x && lhs.y != rhs.y && lhs.z != rhs.z;
+
+            public override bool Equals(object? obj) => obj is Coord coord && x == coord.x && y == coord.y && z == coord.z;
+            public override int GetHashCode() => HashCode.Combine(x, y, z);
 
             public static implicit operator Point(in Coord c) => new Point(c.x, c.y);
         }
@@ -121,10 +140,7 @@ namespace rat
             public static readonly Size Sixteen = new Size(16, 16);
             public static readonly Size Thritytwo = new Size(32, 32);
 
-            public uint Area()
-            {
-                return width * height;
-            }
+            public uint Area => width * height;
 
             public static Size operator +(in Size lhs, in Size rhs) => new Size(lhs.width + rhs.width, lhs.height + rhs.height);
 
@@ -135,6 +151,12 @@ namespace rat
 
             public static Size operator /(in Size lhs, in Size rhs) => new Size(lhs.width / rhs.width, lhs.height / rhs.height);
             public static Size operator /(in Size lhs, double scalar) => new Size((uint)(lhs.width / scalar), (uint)(lhs.height / scalar));
+
+            public static bool operator ==(in Size lhs, in Size rhs) => lhs.width == rhs.width && lhs.height == rhs.height;
+            public static bool operator !=(in Size lhs, in Size rhs) => lhs.width != rhs.width && lhs.height != rhs.height;
+
+            public override bool Equals(object? obj) => obj is Size bounds && width == bounds.width && height == bounds.height;
+            public override int GetHashCode() => HashCode.Combine(width, height);
 
             public static explicit operator Bounds(in Size s) => new Bounds(s.width, s.height, 0);
         }
@@ -162,27 +184,31 @@ namespace rat
             public static readonly Bounds Sixteen = new Bounds(16, 16, 16);
             public static readonly Bounds Thritytwo = new Bounds(32, 32, 32);
 
-            public uint Area()
-            {
-                return width * height;
-            }
-
-            public uint Volume()
-            {
-                return width * height * depth;
-            }
+            public uint Area => width * height;
+            public uint Volume => width * height * depth;
 
             public static Bounds operator +(in Bounds lhs, in Bounds rhs) => new Bounds(lhs.width + rhs.width, lhs.height + rhs.height, lhs.depth + rhs.depth);
+            public static Bounds operator +(in Bounds lhs, in Size rhs) => new Bounds(lhs.width + rhs.width, lhs.height + rhs.height, lhs.depth);
 
-            public static Bounds operator -(in Bounds lhs, in Bounds rhs) => new Bounds(lhs.width - rhs.width, lhs.height - rhs.height, lhs.depth + rhs.depth);
+            public static Bounds operator -(in Bounds lhs, in Bounds rhs) => new Bounds(lhs.width - rhs.width, lhs.height - rhs.height, lhs.depth - rhs.depth);
+            public static Bounds operator -(in Bounds lhs, in Size rhs) => new Bounds(lhs.width - rhs.width, lhs.height - rhs.height, lhs.depth);
 
-            public static Bounds operator *(in Bounds lhs, in Bounds rhs) => new Bounds(lhs.width * rhs.width, lhs.height * rhs.height, lhs.depth + rhs.depth);
+            public static Bounds operator *(in Bounds lhs, in Bounds rhs) => new Bounds(lhs.width * rhs.width, lhs.height * rhs.height, lhs.depth * rhs.depth);
+            public static Bounds operator *(in Bounds lhs, in Size rhs) => new Bounds(lhs.width * rhs.width, lhs.height * rhs.height, lhs.depth);
             public static Bounds operator *(in Bounds lhs, double scalar) => new Bounds((uint)(lhs.width * scalar), (uint)(lhs.height * scalar), (uint)(lhs.depth * scalar));
 
             public static Bounds operator /(in Bounds lhs, in Bounds rhs) => new Bounds(lhs.width / rhs.width, lhs.height / rhs.height, lhs.depth / rhs.depth);
+            public static Bounds operator /(in Bounds lhs, in Size rhs) => new Bounds(lhs.width / rhs.width, lhs.height / rhs.height, lhs.depth);
             public static Bounds operator /(in Bounds lhs, double scalar) => new Bounds((uint)(lhs.width / scalar), (uint)(lhs.height / scalar), (uint)(lhs.depth * scalar));
 
+            public static bool operator ==(in Bounds lhs, in Bounds rhs) => lhs.width == rhs.width && lhs.height == rhs.height && lhs.depth == rhs.depth;
+            public static bool operator !=(in Bounds lhs, in Bounds rhs) => lhs.width != rhs.width && lhs.height != rhs.height && lhs.depth != rhs.depth;
+
+            public override bool Equals(object? obj) => obj is Bounds bounds && width == bounds.width && height == bounds.height && depth == bounds.depth;
+            public override int GetHashCode() => HashCode.Combine(width, height, depth);
+
             public static implicit operator Size(in Bounds b) => new Size(b.width, b.height);
+            public static Bounds ToBounds(in Size s, uint depth) => new Bounds(s.width, s.height, depth);
         }
 
         /// <summary>
@@ -400,6 +426,32 @@ namespace rat
             public static explicit operator Letter(in ColoredLetter letter)
             {
                 return letter.letter;
+            }
+        }
+
+        public enum VerticalAlignment
+	    {
+		    Center,
+		    Upper,
+		    Lower
+	    }
+
+        public enum HorizontalAlignment
+	    {
+		    Center,
+		    Left,
+		    Right
+	    }
+
+        public struct TextAlignment
+	    {
+            public VerticalAlignment vertical;
+            public HorizontalAlignment horizontal;
+
+            public TextAlignment(in VerticalAlignment vertical, in HorizontalAlignment horizontal)
+            {
+                this.vertical = vertical;
+                this.horizontal = horizontal;
             }
         }
     }

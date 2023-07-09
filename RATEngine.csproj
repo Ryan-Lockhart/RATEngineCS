@@ -11,6 +11,7 @@
 
   <ItemGroup>
     <PackageReference Include="Raylib-cs" Version="4.5.0.1" />
+    <PackageReference Include="ShaiRandom" Version="0.0.2" />
   </ItemGroup>
 
   <ItemGroup>
@@ -34,6 +35,9 @@
     </None>
     <None Update="Assets\Tilesets\tileset_16x16_without-floor.png">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+    <None Update="RandomEngine.dll">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
   </ItemGroup>
 

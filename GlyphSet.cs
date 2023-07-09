@@ -39,13 +39,19 @@ namespace rat
 
         private Texture2D _texture;
 
+        public string Path => _path;
+
+        public Size GlyphSize => _glyphSize;
+
+        public Size AtlasSize => _atlasSize;
+
         public GlyphSet(GlyphSetInfo info)
         {
             _path = info.path;
             _glyphSize = info.glyphSize;
             _atlasSize = info.atlasSize;
 
-            _rects = new Rect[_atlasSize.Area()];
+            _rects = new Rect[_atlasSize.Area];
 
             for (int y = 0; y < _atlasSize.height; y++)
                 for (int x = 0; x < _atlasSize.width; x++)
@@ -60,7 +66,7 @@ namespace rat
             _glyphSize = glyphSize;
             _atlasSize = atlasSize;
 
-            _rects = new Rect[_atlasSize.Area()];
+            _rects = new Rect[_atlasSize.Area];
 
             for (int y = 0; y < _atlasSize.height; y++)
                 for (int x = 0; x < _atlasSize.width; x++)

@@ -36,6 +36,7 @@ namespace rat
                 Raylib.ClearBackground(Colors.Black);
 
                 Raylib.DrawText(DateTime.Now.Ticks.ToString(), 12, 12, 20, Colors.White);
+                Raylib.DrawText(Globals.Generator.NextInt().ToString(), 12, 24, 20, Colors.White);
 
                 glyphSet.DrawGlyph(Glyphs.ASCII.Player, playerPosition);
 

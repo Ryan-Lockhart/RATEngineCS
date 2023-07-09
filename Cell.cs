@@ -16,9 +16,9 @@ namespace rat
             None,
             Wall,
             Obstacle,
-            Floor
-        };
-
+            Floor,
+            Overhang
+        }
         private Coord m_Position;
         private Map? m_Parent;
         private Actor? m_Occupant;
@@ -82,11 +82,12 @@ namespace rat
                 if (Solid)
                 {
                     if (Opaque) return CellState.Wall;
-                    else return CellState.Floor;
+                    else return CellState.Obstacle;
                 }
                 else
                 {
-                    if (Opaque) return CellState.
+                    if (Opaque) return CellState.Overhang;
+                    else return CellState.Floor;
                 }
             }
         }

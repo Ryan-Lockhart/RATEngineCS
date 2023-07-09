@@ -44,84 +44,148 @@ namespace rat
 
     public class Actor
     {
-        protected ulong iD;
+        protected ulong m_ID;
 
-        protected bool isAI;
+        protected bool m_AI;
 
-        protected string name;
-        protected string description;
+        protected string m_Name;
+        protected string m_Description;
 
-        protected Map? parent;
-        protected Cell? residency;
+        protected Map? m_Parent;
+        protected Cell? m_Residency;
 
-        protected Actor? target;
-        protected Stack<Coord> path;
+        protected Actor? m_Target;
+        protected Stack<Coord>? m_Path;
 
-        protected Glyph glyph;
+        protected Glyph m_Glyph;
 
-        protected Coord position;
-        protected double angle;
-        protected Stance stance;
+        protected Coord m_Position;
+        protected double m_Angle;
+        protected Stance m_Stance;
 
-        protected int reach;
+        protected int m_Reach;
 
-        protected bool dead;
-        protected bool bleeding;
+        protected bool m_Dead;
+        protected bool m_Bleeding;
 
-        protected double maxHealth;
-        protected double currentHealth;
+        protected double m_MaxHealth;
+        protected double m_CurrentHealth;
 
-        protected double damage;
-        protected double armor;
+        protected double m_Damage;
+        protected double m_Armor;
 
-        protected double accuracy;
-        protected double dodge;
+        protected double m_Accuracy;
+        protected double m_Dodge;
 
-        public ulong ID { get => iD; set => iD = value; }
+        public ulong ID { get => m_ID; set => m_ID = value; }
 
-        public bool IsAI { get => isAI; set => isAI = value; }
+        public bool IsAI { get => m_AI; set => m_AI = value; }
 
-        public string Name { get => name; set => name = value; }
-        public string Description { get => description; set => description = value; }
+        public string Name { get => m_Name; set => m_Name = value; }
+        public string Description { get => m_Description; set => m_Description = value; }
 
-        public Map? Parent { get => parent; set => parent = value; }
+        public Map? Parent { get => m_Parent; set => m_Parent = value; }
+        public bool HasParent => m_Parent != null;
 
-        public Cell? Residency { get => residency; set => residency = value; }
+        public Cell? Residency { get => m_Residency; set => m_Residency = value; }
+        public bool HasResidency => m_Residency != null;
 
-        public Actor? Target { get => target; set => target = value; }
+        public Actor? Target { get => m_Target; set => m_Target = value; }
+        public bool HasTarget => m_Target != null;
 
-        public Stack<Coord> Path { get => path; set => path = value; }
+        public Stack<Coord>? Path { get => m_Path; set => m_Path = value; }
+        public bool HasPath => m_Path != null;
 
-        public Glyph Glyph { get => glyph; set => glyph = value; }
+        public Glyph Glyph { get => m_Glyph; set => m_Glyph = value; }
 
-        public Coord Position { get => position; set => position = value; }
+        public Coord Position { get => m_Position; set => m_Position = value; }
 
-        public double Angle { get => angle; set => angle = value; }
+        public double Angle { get => m_Angle; set => m_Angle = value; }
 
-        public Stance Stance { get => stance; set => stance = value; }
+        public Stance Stance { get => m_Stance; set => m_Stance = value; }
 
-        public int Reach { get => reach; set => reach = value; }
+        public int Reach { get => m_Reach; set => m_Reach = value; }
 
-        public bool Dead { get => dead; set => dead = value; }
+        public bool Alive => !Dead;
+        public bool Dead { get => m_Dead; set => m_Dead = value; }
 
-        public bool Bleeding { get => bleeding; set => bleeding = value; }
+        public bool Bleeding { get => m_Bleeding; set => m_Bleeding = value; }
 
-        public double MaxHealth { get => maxHealth; set => maxHealth = value; }
-        public double CurrentHealth { get => currentHealth; set => currentHealth = value; }
+        public double MaxHealth { get => m_MaxHealth; set => m_MaxHealth = value; }
+        public double CurrentHealth { get => m_CurrentHealth; set => m_CurrentHealth = value; }
 
-        public double Damage { get => damage; set => damage = value; }
-        public double Armor { get => armor; set => armor = value; }
+        public double Damage { get => m_Damage; set => m_Damage = value; }
+        public double Armor { get => m_Armor; set => m_Armor = value; }
 
-        public double Accuracy { get => accuracy; set => accuracy = value; }
-        public double Dodge { get => dodge; set => dodge = value; }
+        public double Accuracy { get => m_Accuracy; set => m_Accuracy = value; }
+        public double Dodge { get => m_Dodge; set => m_Dodge = value; }
 
-        public Actor(ulong id, string name, string description, in Glyph glyph, int reach, float health, float damage, float armor, float accuracy, float dodge, bool randomize, Cell? startingCell, bool isAI = true)
+        public Actor(ulong id, Cell? startingCell, string name, string description, in Glyph glyph, int reach, float health, float damage, float armor, float accuracy, float dodge, bool randomize, bool isAI = true)
         {
+            if (startingCell == null) throw new ArgumentNullException(nameof(startingCell));
+            else if (startingCell.Occupied) throw new ArgumentException(nameof(startingCell));
 
+            m_Parent = startingCell.Parent;
+            m_Residency = startingCell;
+            m_Residency.Occupant = this;
+
+            m_ID = id;
+
+            m_AI = isAI;
+
+            m_Name = name;
+            m_Description = description;
+
+            m_Glyph = glyph;
+
+            m_Reach = reach;
+
+            m_Dead = false;
+            m_Bleeding = false;
+
+            m_MaxHealth = health + (randomize ? 0.0 : 0.0);
+            m_CurrentHealth = MaxHealth;
+
+            m_Damage = damage + (randomize ? 0.0 : 0.0);
+            m_Armor = armor + (randomize ? 0.0 : 0.0);
+
+            m_Accuracy = accuracy + (randomize ? 0.0 : 0.0);
+            m_Dodge = dodge + (randomize ? 0.0 : 0.0);
         }
-        public Actor(ulong id, string name, string description, in Glyph glyph, int reach, float health, float damage, float armor, float accuracy, float dodge, bool randomize, Map? map, bool isAI = true)
-        {
 
+        public Actor(ulong id, Map? map, string name, string description, in Glyph glyph, int reach, float health, float damage, float armor, float accuracy, float dodge, bool randomize, bool isAI = true)
+        {
+            if (map == null) throw new ArgumentNullException(nameof(map));
+
+            m_Parent = map;
+            m_Residency = map.FindOpen();
+
+            if (m_Residency == null) throw new NullReferenceException(nameof(m_Residency));
+
+            m_Residency.Occupant = this;
+
+            m_ID = id;
+
+            m_AI = isAI;
+
+            m_Name = name;
+            m_Description = description;
+
+            m_Glyph = glyph;
+
+            m_Reach = reach;
+
+            m_Dead = false;
+            m_Bleeding = false;
+
+            m_MaxHealth = health + (randomize ? 0.0 : 0.0);
+            m_CurrentHealth = MaxHealth;
+
+            m_Damage = damage + (randomize ? 0.0 : 0.0);
+            m_Armor = armor + (randomize ? 0.0 : 0.0);
+
+            m_Accuracy = accuracy + (randomize ? 0.0 : 0.0);
+            m_Dodge = dodge + (randomize ? 0.0 : 0.0);
         }
 
         public virtual void Update()
