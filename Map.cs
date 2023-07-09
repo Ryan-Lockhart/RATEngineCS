@@ -8,6 +8,8 @@ using System.Threading.Tasks;
 using rat.Primitives;
 using rat.Constants;
 using rat.Random;
+using System.Reflection.Metadata;
+using System.Collections.Specialized;
 
 namespace rat
 {
@@ -56,7 +58,7 @@ namespace rat
                 m_Position.y = m_Bounds.height - Screens.MapDisplay.size.height;
         }
 
-		private void ShadowCast(in Coord origin, int row, double start, double end, in Octant octant, double radius)
+		private void ShadowCast(in Coord origin, List<Coord> fov, int row, double start, double end, in Octant octant, double radius)
         {
             double newStart = 0;
 
@@ -65,13 +67,13 @@ namespace rat
 
             bool blocked = false;
 
-            for (double distance = row; distance <= radius && distance < m_Bounds.Area() && !blocked; distance++)
+            for (double distance = row; distance <= radius && distance < m_Bounds.Area && !blocked; distance++)
             {
                 double deltaY = -distance;
 
                 for (double deltaX = -distance; deltaX <= 0; deltaX++)
                 {
-                    Coord currentPosition{ static_cast<coord_t>(origin.X + deltaX * octant.x + deltaY * octant.dx), static_cast<coord_t>(origin.Y + deltaX * octant.y + deltaY * octant.dy), origin.Z };
+                    Coord currentPosition = new Coord((long)(origin.x + deltaX * octant.x + deltaY * octant.dx), (long)(origin.y + deltaX * octant.y + deltaY * octant.dy), origin.z);
                     Coord delta = currentPosition - origin;
 
                     double leftSlope = (deltaX - 0.5f) / (deltaY + 0.5f);
@@ -82,23 +84,18 @@ namespace rat
                     if (end > leftSlope)
                         break;
 
-                    double deltaRadius = math::normalize(deltaX, deltaY);
+                    double deltaRadius = Maths.Normalize(deltaX, deltaY);
 
-                    Cell* cell = GetCell(currentPosition);
+                    Cell? cell = this[currentPosition];
 
-                    if (cell != nullptr)
+                    if (cell != null)
                     {
-                        bool opaque = cell->IsOpaque();
-
                         if (deltaRadius <= radius)
-                        {
-                            cell->Explore();
-                            cell->See();
-                        }
+                            fov.Add(cell.Position);
 
                         if (blocked)
                         {
-                            if (opaque)
+                            if (cell.Opaque)
                                 newStart = rightSlope;
                             else
                             {
@@ -106,11 +103,11 @@ namespace rat
                                 start = newStart;
                             }
                         }
-                        else if (opaque && distance < radius)
+                        else if (cell.Opaque && distance < radius)
                         {
                             blocked = true;
 
-                            ShadowCast(origin, distance + 1, start, leftSlope, octant, radius);
+                            ShadowCast(origin, fov, (int)distance + 1, start, leftSlope, octant, radius);
 
                             newStart = rightSlope;
                         }
@@ -119,7 +116,7 @@ namespace rat
             }
         }
 
-		private void ShadowCastLimited(in Coord origin, int row, double start, double end, in Octant octant, double radius, double angle, double span)
+		private void ShadowCast(in Coord origin, List<Coord> fov, int row, double start, double end, in Octant octant, double radius, double angle, double span)
         {
             double newStart = 0;
 
@@ -128,13 +125,13 @@ namespace rat
 
             bool blocked = false;
 
-            for (double distance = row; distance <= radius && distance < m_Bounds.Area() && !blocked; distance++)
+            for (double distance = row; distance <= radius && distance < m_Bounds.Area && !blocked; distance++)
             {
                 double deltaY = -distance;
 
                 for (double deltaX = -distance; deltaX <= 0; deltaX++)
                 {
-                    Coord currentPosition{ static_cast<coord_t>(origin.X + deltaX * octant.x + deltaY * octant.dx), static_cast<coord_t>(origin.Y + deltaX * octant.y + deltaY * octant.dy), origin.Z };
+                    Coord currentPosition = new Coord((long)(origin.x + deltaX * octant.x + deltaY * octant.dx), (long)(origin.y + deltaX * octant.y + deltaY * octant.dy), origin.z);
                     Coord delta = currentPosition - origin;
 
                     double leftSlope = (deltaX - 0.5f) / (deltaY + 0.5f);
@@ -145,24 +142,19 @@ namespace rat
                     if (end > leftSlope)
                         break;
 
-                    double deltaRadius = math::normalize(deltaX, deltaY);
-                    double at2 = abs(angle - math::atan2_agnostic((double)delta.Y, (double)delta.X));
+                    double deltaRadius = Maths.Normalize(deltaX, deltaY);
+                    double at2 = Math.Abs(angle - Maths.Atan2(delta.y, delta.x));
 
-                    Cell* cell = GetCell(currentPosition);
+                    Cell? cell = this[currentPosition];
 
-                    if (cell != nullptr)
+                    if (cell != null)
                     {
-                        bool opaque = cell->IsOpaque();
-
                         if (deltaRadius <= radius && (at2 <= span * 0.5 || at2 >= 1.0 - span * 0.5))
-                        {
-                            cell->Explore();
-                            cell->See();
-                        }
+                            fov.Add(cell.Position);
 
                         if (blocked)
                         {
-                            if (opaque)
+                            if (cell.Opaque)
                                 newStart = rightSlope;
                             else
                             {
@@ -170,132 +162,11 @@ namespace rat
                                 start = newStart;
                             }
                         }
-                        else if (opaque && distance < radius)
+                        else if (cell.Opaque && distance < radius)
                         {
                             blocked = true;
 
-                            ShadowCastLimited(origin, distance + 1, start, leftSlope, octant, radius, angle, span);
-
-                            newStart = rightSlope;
-                        }
-                    }
-                }
-            }
-        }
-
-		private void ShadowCast(in Coord origin, ref Coord[] fovVector, int row, double start, double end, in Octant octant, double radius)
-        {
-            double newStart = 0;
-
-            if (start < end)
-                return;
-
-            bool blocked = false;
-
-            for (double distance = row; distance <= radius && distance < m_Bounds.Area() && !blocked; distance++)
-            {
-                double deltaY = -distance;
-
-                for (double deltaX = -distance; deltaX <= 0; deltaX++)
-                {
-                    Coord currentPosition{ static_cast<coord_t>(origin.X + deltaX * octant.x + deltaY * octant.dx), static_cast<coord_t>(origin.Y + deltaX * octant.y + deltaY * octant.dy), origin.Z };
-                    Coord delta = currentPosition - origin;
-
-                    double leftSlope = (deltaX - 0.5f) / (deltaY + 0.5f);
-                    double rightSlope = (deltaX + 0.5f) / (deltaY - 0.5f);
-
-                    if (!IsValid(currentPosition) || start < rightSlope)
-                        continue;
-                    if (end > leftSlope)
-                        break;
-
-                    double deltaRadius = math::normalize(deltaX, deltaY);
-
-                    Cell* cell = GetCell(currentPosition);
-
-                    if (cell != nullptr)
-                    {
-                        bool opaque = cell->IsOpaque();
-
-                        if (deltaRadius <= radius)
-                            fovVector.push_back(cell->GetPosition());
-
-                        if (blocked)
-                        {
-                            if (opaque)
-                                newStart = rightSlope;
-                            else
-                            {
-                                blocked = false;
-                                start = newStart;
-                            }
-                        }
-                        else if (opaque && distance < radius)
-                        {
-                            blocked = true;
-
-                            ShadowCast(origin, fovVector, distance + 1, start, leftSlope, octant, radius);
-
-                            newStart = rightSlope;
-                        }
-                    }
-                }
-            }
-        }
-
-		private void ShadowCastLimited(in Coord origin, ref Coord[] fovVector, int row, double start, double end, in Octant octant, double radius, double angle, double span)
-        {
-            double newStart = 0;
-
-            if (start < end)
-                return;
-
-            bool blocked = false;
-
-            for (double distance = row; distance <= radius && distance < m_Bounds.Area() && !blocked; distance++)
-            {
-                double deltaY = -distance;
-
-                for (double deltaX = -distance; deltaX <= 0; deltaX++)
-                {
-                    Coord currentPosition{ static_cast<coord_t>(origin.X + deltaX * octant.x + deltaY * octant.dx), static_cast<coord_t>(origin.Y + deltaX * octant.y + deltaY * octant.dy), origin.Z };
-                    Coord delta = currentPosition - origin;
-
-                    double leftSlope = (deltaX - 0.5f) / (deltaY + 0.5f);
-                    double rightSlope = (deltaX + 0.5f) / (deltaY - 0.5f);
-
-                    if (!IsValid(currentPosition) || start < rightSlope)
-                        continue;
-                    if (end > leftSlope)
-                        break;
-
-                    double deltaRadius = math::normalize(deltaX, deltaY);
-                    double at2 = abs(angle - math::atan2_agnostic((double)delta.Y, (double)delta.X));
-
-                    Cell* cell = GetCell(currentPosition);
-
-                    if (cell != nullptr)
-                    {
-                        bool opaque = cell->IsOpaque();
-
-                        if (deltaRadius <= radius && (at2 <= span * 0.5 || at2 >= 1.0 - span * 0.5))
-                            fovVector.push_back(cell->GetPosition());
-
-                        if (blocked)
-                        {
-                            if (opaque)
-                                newStart = rightSlope;
-                            else
-                            {
-                                blocked = false;
-                                start = newStart;
-                            }
-                        }
-                        else if (opaque && distance < radius)
-                        {
-                            blocked = true;
-
-                            ShadowCastLimited(origin, fovVector, distance + 1, start, leftSlope, octant, radius, angle, span);
+                            ShadowCast(origin, fov, (int)distance + 1, start, leftSlope, octant, radius, angle, span);
 
                             newStart = rightSlope;
                         }
@@ -455,6 +326,9 @@ namespace rat
 				m_Solids[Index(position)] : true;
 		}
 
+        /// <summary>
+        /// Reset the fog of war
+        /// </summary>
 		public void ResetSeen()
         {
             for (long z = 0; z < m_Bounds.depth; z++)
@@ -463,11 +337,17 @@ namespace rat
                     {
                         Coord position = new Coord(x, y, z);
 
-                        this[position].Seen = false;
+                        Cell? cell = this[position];
+                        if (cell == null) continue;
+
+                        cell.Seen = false;
                     }
         }
 
-        public void RevealMap()
+        /// <summary>
+        /// Reveal the entire map
+        /// </summary>
+        public void RevealMap(bool onlyFog = true)
         {
             for (long z = 0; z < m_Bounds.depth; z++)
                 for (long y = 0; y < m_Bounds.height; y++)
@@ -475,9 +355,26 @@ namespace rat
                     {
                         Coord position = new Coord(x, y, z);
 
-                        this[position].Seen = true;
-                        this[position].Explored = true;
+                        Cell? cell = this[position];
+                        if (cell == null) continue;
+
+                        cell.Explored = true;
+
+                        if (!onlyFog)
+                            cell.Seen = true;
                     }
+        }
+
+        public void RevealMap(in List<Coord> fov)
+        {
+            foreach (Coord position in fov)
+            {
+                Cell? cell = this[position];
+                if (cell == null) continue;
+
+                cell.Seen = true;
+                cell.Explored = true;
+            }
         }
 
         public void CenterOn(in Coord position)
@@ -527,257 +424,208 @@ namespace rat
 
         public bool IsGenerating() => m_Generating;
 
-        public void CalculateFOV(in Coord origin, double viewDistance)
+        public List<Coord> CalculateFOV(in Coord origin, double viewDistance)
         {
-            ResetSeen();
+            List<Coord> fov = new List<Coord>();
 
-            viewDistance = std::max<double>(1, viewDistance);
+            viewDistance = Math.Max(1, viewDistance);
 
-            Cell* cell = GetCell(origin);
-
-            if (cell != nullptr)
+            Cell? cell = this[origin];
+            if (cell != null)
             {
-                cell->See();
-                cell->Explore();
+                var neighbours = GetNeighbourhood(origin);
+
+                foreach (var neighbour in neighbours)
+                    if (neighbour != null)
+                        fov.Add(neighbour.Position);
+
+                fov.Add(cell.Position);
             }
 
             for (int i = 0; i < 8; i++)
             {
-                ShadowCast(origin, 1, 1.0, 0.0, octants[i], viewDistance);
+                ShadowCast(origin, fov, 1, 1.0, 0.0, Settings.Octants[i], viewDistance);
             }
+
+            return fov;
         }
 
-        public void CalculateFOV(in Coord origin, double viewDistance, double angle, double span)
+        public List<Coord> CalculateFOV(in Coord origin, double viewDistance, double angle, double span)
         {
-            ResetSeen();
+            List<Coord> fov = new List<Coord>();
 
-            viewDistance = std::max<double>(1, viewDistance);
+            viewDistance = Math.Max(1, viewDistance);
 
-            angle = (angle > 360.0 || angle < 0.0 ? math::wrap_around(angle, 360.0) : angle) * math::deg_percent_of_circle;
-            span *= math::deg_percent_of_circle;
+            angle = (angle > 360.0 || angle < 0.0 ? Maths.WrapAround(angle, 360.0) : angle) * Maths.PercentOfCircle;
+            span *= Maths.PercentOfCircle;
 
-            Cell* cell = GetCell(origin);
+            Cell? cell = this[origin];
 
-            if (cell != nullptr)
+            if (cell != null)
             {
-                auto neighbours = GetNeighbourhood(origin, false);
+                var neighbours = GetNeighbourhood(origin);
 
-                for (auto & neighbour : neighbours)
-                    if (neighbour != nullptr)
-                    {
-                        neighbour->See();
-                        neighbour->Explore();
-                    }
+                foreach (var neighbour in neighbours)
+                    if (neighbour != null)
+                        fov.Add(neighbour.Position);
 
-                cell->See();
-                cell->Explore();
+                fov.Add(cell.Position);
             }
 
             for (int i = 0; i < 8; i++)
             {
-                ShadowCastLimited(origin, 1, 1.0, 0.0, octants[i], viewDistance, angle, span);
+                ShadowCast(origin, fov, 1, 1.0, 0.0, Settings.Octants[i], viewDistance, angle, span);
             }
+
+            return fov;
         }
 
-        public void CalculateFOV(in Coord origin, double viewDistance, double angle, double span, double nudge)
+        public List<Coord> CalculateFOV(in Coord origin, double viewDistance, double angle, double span, double nudge)
         {
-            ResetSeen();
+            List<Coord> fov = new List<Coord>();
 
-		    Coord shiftedOrigin = nudge > 0 ?
-			    Coord{
-			    static_cast<coord_t>(origin.X + cos(math::deg_to_rad * angle) * -nudge),
-				    origin.Y + static_cast<coord_t>(sin(math::deg_to_rad * angle) * -nudge),
-				    origin.Z
-		    } : origin;
+            double radians = Maths.ToRadians(angle);
 
-		    viewDistance = std::max<double>(1, viewDistance);
+            Coord shiftedOrigin = nudge != 0 ?
+			    new Coord( origin.x + (long)(Math.Cos(radians) * nudge), origin.y + (long)(Math.Sin(radians) * nudge), origin.z) :
+                origin;
 
-		    angle = (angle > 360.0 || angle < 0.0 ? math::wrap_around(angle, 360.0) : angle) * math::deg_percent_of_circle;
-		    span *= math::deg_percent_of_circle;
+		    viewDistance = Math.Max(1, viewDistance);
 
-		    Cell* cell = GetCell(shiftedOrigin);
+		    angle = (angle > 360.0 || angle < 0.0 ? Maths.WrapAround(angle, 360.0) : angle) * Maths.PercentOfCircle;
+		    span *= Maths.PercentOfCircle;
 
-		    if (cell != nullptr)
+		    Cell? cell = this[shiftedOrigin];
+
+		    if (cell != null)
 		    {
-			    auto neighbours = GetNeighbourhood(shiftedOrigin, false);
+			    var neighbours = GetNeighbourhood(shiftedOrigin);
 
-			    for (auto& neighbour : neighbours)
-				    if (neighbour != nullptr)
-				    {
-					    neighbour->See();
-					    neighbour->Explore();
-				    }
+			    foreach (var neighbour in neighbours)
+				    if (neighbour != null)
+                        fov.Add(neighbour.Position);
 
-			    cell->See();
-			    cell->Explore();
+                fov.Add(cell.Position);
 		    }
 
 		    for (int i = 0; i < 8; i++)
 		    {
-			    ShadowCastLimited(shiftedOrigin, 1, 1.0, 0.0, octants[i], viewDistance, angle, span);
-		    }
-        }
-
-        public List<Coord> WithinFOV(in Coord origin, double viewDistance)
-        {
-            std::vector<Coord> fovVector;
-
-            viewDistance = std::max<double>(1, viewDistance);
-
-            Cell* cell = GetCell(origin);
-
-            if (cell != nullptr)
-            {
-                auto neighbours = GetNeighbourhood(origin, false);
-
-                for (auto & neighbour : neighbours)
-                    if (neighbour != nullptr)
-                        fovVector.push_back(neighbour->GetPosition());
-
-                fovVector.push_back(cell->GetPosition());
-            }
-
-            for (int i = 0; i < 8; i++)
-            {
-                ShadowCast(origin, fovVector, 1, 1.0, 0.0, octants[i], viewDistance);
-            }
-
-            return fovVector;
-        }
-
-        public List<Coord> WithinFOV(in Coord origin, double viewDistance, double angle, double span)
-        {
-            std::vector<Coord> fovVector;
-
-            viewDistance = std::max<double>(1, viewDistance);
-
-            angle = (angle > 360.0 || angle < 0.0 ? math::wrap_around(angle, 360.0) : angle) * math::deg_percent_of_circle;
-            span *= math::deg_percent_of_circle;
-
-            Cell* cell = GetCell(origin);
-
-            if (cell != nullptr)
-            {
-                auto neighbours = GetNeighbourhood(origin, false);
-
-                for (auto & neighbour : neighbours)
-                    if (neighbour != nullptr)
-                        fovVector.push_back(neighbour->GetPosition());
-
-                fovVector.push_back(cell->GetPosition());
-            }
-
-            for (int i = 0; i < 8; i++)
-            {
-                ShadowCastLimited(origin, fovVector, 1, 1.0, 0.0, octants[i], viewDistance, angle, span);
-            }
-
-            return fovVector;
-        }
-
-        public List<Coord> WithinFOV(in Coord origin, double viewDistance, double angle, double span, double nudge)
-        {
-            std::vector<Coord> fovVector;
-
-		    Coord shiftedOrigin = nudge > 0 ?
-			    Coord{
-			    static_cast<coord_t>(origin.X + cos(math::deg_to_rad * angle) * -nudge),
-				    origin.Y + static_cast<coord_t>(sin(math::deg_to_rad * angle) * -nudge),
-				    origin.Z
-		    } : origin;
-
-		    viewDistance = std::max<double>(1, viewDistance);
-
-		    angle = (angle > 360.0 || angle < 0.0 ? math::wrap_around(angle, 360.0) : angle) * math::deg_percent_of_circle;
-		    span *= math::deg_percent_of_circle;
-
-		    Cell* cell = GetCell(shiftedOrigin);
-
-		    if (cell != nullptr)
-		    {
-			    auto neighbours = GetNeighbourhood(shiftedOrigin, false);
-
-			    for (auto& neighbour : neighbours)
-				    if (neighbour != nullptr)
-					    fovVector.push_back(neighbour->GetPosition());
-
-			    fovVector.push_back(cell->GetPosition());
+			    ShadowCast(shiftedOrigin, fov, 1, 1.0, 0.0, Settings.Octants[i], viewDistance, angle, span);
 		    }
 
-		    for (int i = 0; i < 8; i++)
-		    {
-			    ShadowCastLimited(shiftedOrigin, fovVector, 1, 1.0, 0.0, octants[i], viewDistance, angle, span);
-		    }
+		    return fov;
+        }
 
-		    return fovVector;
+        public struct NodeData
+        {
+	        public Coord position;
+            public int distance;
+            public int heuristic;
+
+            public NodeData(in Coord pos, int dist, int h)
+            {
+                position = pos;
+                distance = dist;
+                heuristic = h;
+            }
+
+            /// <summary>
+            /// Total cost by combining the distance and heuristic values
+            /// </summary>
+            public int Cost => distance + heuristic;
+        };
+
+        struct NodeDataComparator : IComparer<NodeData>
+        {
+            public int Compare(NodeData x, NodeData y)
+            {
+                if (x.Cost == y.Cost)
+                    return 0;
+                else if (x.Cost < y.Cost)
+                    return -1;
+                else return 1;
+            }
+        }
+        public enum Distance
+        {
+	        Manhattan,
+	        Chebyshev,
+	        Octile,
+	        Euclidean
+        };
+
+        public int CalculateHeuristic(in Coord current, in Coord destination, in Distance distance = Distance.Euclidean)
+        {
+	        int dx = Math.Abs((int)current.x - (int)destination.x);
+	        int dy = Math.Abs((int)current.y - (int)destination.y);
+
+	        switch (distance)
+	        {
+		        case Distance.Manhattan:
+			        return dx + dy;
+		        case Distance.Chebyshev:
+			        return Math.Max(dx, dy);
+		        case Distance.Octile:
+			        return (int)(1.0 * (dx + dy) + (1.414 - 2.0 * 1.0) * Math.Min(dx, dy));
+		        case Distance.Euclidean:
+			        return (int)Math.Sqrt(Math.Pow(dx, 2) + Math.Pow(dy, 2));
+                default:
+                    return 0;
+	        }
         }
 
         public Stack<Coord> CalculatePath(in Coord origin, in Coord destination)
         {
-            std::priority_queue<NodeData, std::vector<NodeData>, NodeDataComparator> frontier;
-            frontier.push({ origin, 0, CalculateHeuristic(origin, destination) });
+            PriorityQueue<NodeData, NodeDataComparator> frontier = new PriorityQueue<NodeData, NodeDataComparator>();
 
-            std::unordered_map<Coord, std::pair<Coord, int>> came_from;
-            came_from[origin] = std::make_pair(origin, 0);
+            frontier.Enqueue(new NodeData(origin, 0, CalculateHeuristic(origin, destination)), new NodeDataComparator());
 
-            while (!frontier.empty())
+            Dictionary<Coord, (Coord, int)> came_from = new Dictionary<Coord, (Coord, int)>();
+
+            came_from[origin] = (origin, 0);
+
+            while (frontier.Count > 0)
             {
-                Coord current = frontier.top().position;
-                frontier.pop();
+                Coord currentPosition = frontier.Dequeue().position;
 
-                if (current == destination)
+                if (currentPosition == destination)
                     break;
 
-                auto & neighbourhood = GetNeighbourhood(current);
+                var neighbourhood = GetNeighbourhood(currentPosition);
 
-                for (const auto&neighborPtr : neighbourhood)
+                foreach (var neighbor in neighbourhood)
 			    {
-                    if (neighborPtr != nullptr)
+                    if (neighbor != null)
                     {
-                        Coord neighborPos = neighborPtr->GetPosition();
+                        Coord neighborPos = neighbor.Position;
 
-                        bool solid = neighborPtr->IsSolid();
-                        int newDistance = came_from[current].second + 1; // Assuming constant distance for adjacent cells
+                        bool solid = neighbor.Solid;
+                        int newDistance = came_from[currentPosition].Item2 + 1; // Assuming constant distance for adjacent cells
 
-                        if ((came_from.find(neighborPos) == came_from.end() || newDistance < came_from[neighborPos].second) && !solid)
+                        if ((came_from[neighborPos] == came_from.Last().Value || newDistance < came_from[neighborPos].Item2) && !solid)
                         {
-                            int heuristic = CalculateHeuristic(neighborPos, destination);
-                            frontier.push({ neighborPos, newDistance, heuristic });
-                            came_from[neighborPos] = std::make_pair(current, newDistance);
+                            frontier.Enqueue(new NodeData(neighborPos, newDistance, CalculateHeuristic(neighborPos, destination)), new NodeDataComparator());
+                            came_from[neighborPos] = (currentPosition, newDistance);
                         }
                     }
                 }
             }
 
-            std::stack<Coord> path;
+            Stack<Coord> path = new Stack<Coord>();
 
             Coord current = destination;
-            if (came_from.find(destination) == came_from.end())
+
+            if (came_from[destination] == came_from.Last().Value)
             {
                 return path;
             }
             while (current != origin)
             {
-                path.push(current);
-                current = came_from[current].first;
+                path.Push(current);
+                current = came_from[current].Item1;
             }
 
             return path;
-        }
-
-        public void GetNeighbourhood(in Coord position, out List<Cell?> neighbourhood)
-        {
-            neighbourhood = new List<Cell?>();
-
-            for (int y_offset = -1; y_offset <= 1;  y_offset++)
-            {
-                for (int x_offset = -1; x_offset <= 1; x_offset++)
-                {
-                    Coord currentPosition = position + new Coord(x_offset, y_offset, 0);
-
-                    neighbourhood.Add(this[currentPosition]);
-                }
-            }
         }
 
         public List<Cell?> GetNeighbourhood(in Coord position)
