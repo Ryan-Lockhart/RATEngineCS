@@ -11,29 +11,33 @@ namespace rat
     {
         public class RandomEngine : IDisposable
         {
-            private readonly ulong seed;
+            private readonly ulong m_Seed;
 
             public RandomEngine()
             {
-                seed = (ulong)System.Random.Shared.NextInt64();
-                set_seed(seed);
+                m_Seed = (ulong)System.Random.Shared.NextInt64();
+                set_seed(m_Seed);
 
                 initialize();
             }
 
             public RandomEngine(ulong seed)
             {
-                this.seed = seed;
-                set_seed(this.seed);
+                m_Seed = seed;
+                set_seed(m_Seed);
 
                 initialize();
             }
 
-            public ulong Seed => seed;
+            public ulong Seed
+            {
+                get { return get_seed(); }
+                set { set_seed(value); }
+            }
 
             public int NextInt() => next_int();
 
-            public int NextInt(int min, int max) => next_int();
+            public int NextInt(int min, int max) => next_int_min_max(min, max);
 
             public float NextFloat() => next_float();
 
@@ -54,6 +58,9 @@ namespace rat
 
             [DllImport("RandomEngine.dll", CallingConvention = CallingConvention.Cdecl)]
             private static extern void close();
+
+            [DllImport("RandomEngine.dll", CallingConvention = CallingConvention.Cdecl)]
+            private static extern ulong get_seed();
 
             [DllImport("RandomEngine.dll", CallingConvention = CallingConvention.Cdecl)]
             private static extern void set_seed(ulong seed);

@@ -31,76 +31,76 @@ namespace rat
 
     public class GlyphSet : IDisposable
     {
-        private readonly string _path;
-        private readonly Size _glyphSize;
-        private readonly Size _atlasSize;
+        private readonly string m_Path;
+        private readonly Size m_GlyphSize;
+        private readonly Size m_AtlasSize;
 
-        private readonly Rect[] _rects;
+        private readonly Rect[] m_Rects;
 
-        private Texture2D _texture;
+        private Texture2D m_Texture;
 
-        public string Path => _path;
+        public string Path => m_Path;
 
-        public Size GlyphSize => _glyphSize;
+        public Size GlyphSize => m_GlyphSize;
 
-        public Size AtlasSize => _atlasSize;
+        public Size AtlasSize => m_AtlasSize;
 
         public GlyphSet(GlyphSetInfo info)
         {
-            _path = info.path;
-            _glyphSize = info.glyphSize;
-            _atlasSize = info.atlasSize;
+            m_Path = info.path;
+            m_GlyphSize = info.glyphSize;
+            m_AtlasSize = info.atlasSize;
 
-            _rects = new Rect[_atlasSize.Area];
+            m_Rects = new Rect[m_AtlasSize.Area];
 
-            for (int y = 0; y < _atlasSize.height; y++)
-                for (int x = 0; x < _atlasSize.width; x++)
-                    _rects[y * _atlasSize.width + x] = new Rect(new Point(x, y) * _glyphSize, _glyphSize);
+            for (int y = 0; y < m_AtlasSize.height; y++)
+                for (int x = 0; x < m_AtlasSize.width; x++)
+                    m_Rects[y * m_AtlasSize.width + x] = new Rect(new Point(x, y) * m_GlyphSize, m_GlyphSize);
 
-            _texture = Raylib.LoadTexture(_path);
+            m_Texture = Raylib.LoadTexture(m_Path);
         }
 
         public GlyphSet(string path, Size glyphSize, Size atlasSize)
         {
-            _path = path;
-            _glyphSize = glyphSize;
-            _atlasSize = atlasSize;
+            m_Path = path;
+            m_GlyphSize = glyphSize;
+            m_AtlasSize = atlasSize;
 
-            _rects = new Rect[_atlasSize.Area];
+            m_Rects = new Rect[m_AtlasSize.Area];
 
-            for (int y = 0; y < _atlasSize.height; y++)
-                for (int x = 0; x < _atlasSize.width; x++)
-                    _rects[y * _atlasSize.width + x] = new Rect(new Point(x, y) * _glyphSize, _glyphSize);
+            for (int y = 0; y < m_AtlasSize.height; y++)
+                for (int x = 0; x < m_AtlasSize.width; x++)
+                    m_Rects[y * m_AtlasSize.width + x] = new Rect(new Point(x, y) * m_GlyphSize, m_GlyphSize);
 
-            _texture = Raylib.LoadTexture(_path);
+            m_Texture = Raylib.LoadTexture(m_Path);
         }
 
         public void Reload()
         {
-            Raylib.UnloadTexture(_texture);
-            _texture = Raylib.LoadTexture(_path);
+            Raylib.UnloadTexture(m_Texture);
+            m_Texture = Raylib.LoadTexture(m_Path);
         }
 
         public void Dispose()
         {
-            Raylib.UnloadTexture(_texture);
+            Raylib.UnloadTexture(m_Texture);
         }
 
         public void DrawGlyph(byte index, in Color color, in Point position, bool useGrid = true)
         {
-            Raylib.DrawTextureRec(_texture, GetRect(index), useGrid ? position * _glyphSize : position, color);
+            Raylib.DrawTextureRec(m_Texture, GetRect(index), useGrid ? position * m_GlyphSize : position, color);
         }
 
         public void DrawGlyph(in Glyph glyph, in Point position, bool useGrid = true)
         {
-            Raylib.DrawTextureRec(_texture, GetRect(glyph.index), useGrid ? position * _glyphSize : position, glyph.color);
+            Raylib.DrawTextureRec(m_Texture, GetRect(glyph.index), useGrid ? position * m_GlyphSize : position, glyph.color);
         }
 
         public void DrawGlyph(in Glyph glyph, in Rect rect)
         {
-            Raylib.DrawTexturePro(_texture, GetRect(glyph.index), rect, Point.Zero, 0.0f, glyph.color);
+            Raylib.DrawTexturePro(m_Texture, GetRect(glyph.index), rect, Point.Zero, 0.0f, glyph.color);
         }
 
-        private Rect GetRect(uint index) => _rects[index];
+        private Rect GetRect(uint index) => m_Rects[index];
     }
 }

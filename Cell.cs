@@ -47,7 +47,6 @@ namespace rat
 
         public List<Actor?> Corpses { get => m_Corpses; set => m_Corpses = value; }
 
-
         public List<Cell?> Neighbours { get => m_Neighbours; set => m_Neighbours = value; }
 
         public byte Index { get => m_Index; set => m_Index = value; }
@@ -72,7 +71,47 @@ namespace rat
 
         protected void SetIndex()
         {
+            m_Index = 0;
 
+            if (m_Parent == null) return;
+
+            var neighbourhood = m_Parent.GetNeighbourhood(m_Position);
+
+            if ((neighbourhood[0] != null ? neighbourhood[0].Solid : true) &&
+                (neighbourhood[1] != null ? neighbourhood[1].Solid : true) &&
+                (neighbourhood[3] != null ? neighbourhood[3].Solid : true)) m_Index += 8;
+
+            if ((neighbourhood[1] != null ? neighbourhood[1].Solid : true) &&
+                (neighbourhood[2] != null ? neighbourhood[2].Solid : true) &&
+                (neighbourhood[4] != null ? neighbourhood[4].Solid : true)) m_Index += 4;
+
+            if ((neighbourhood[4] != null ? neighbourhood[4].Solid : true) &&
+                (neighbourhood[6] != null ? neighbourhood[6].Solid : true) &&
+                (neighbourhood[7] != null ? neighbourhood[7].Solid : true)) m_Index += 2;
+
+            if ((neighbourhood[3] != null ? neighbourhood[3].Solid : true) &&
+                (neighbourhood[5] != null ? neighbourhood[5].Solid : true) &&
+                (neighbourhood[6] != null ? neighbourhood[6].Solid : true)) m_Index += 1;
+
+            if (m_Solid)
+            {
+                if (m_Index == 0x00)
+                {
+                    m_Solid = false;
+                    m_Opaque = false;
+                }
+                else if (m_Index == 0x0F)
+                    m_Index = Globals.Generator.NextBool(0.5) ? (byte)0x1F : (byte)0x3F;
+                else if (m_Index == 0x00)
+                    m_Index = Globals.Generator.NextBool(0.5) ? (byte)0x30 : (byte)0x10;
+                else m_Index += Globals.Generator.NextBool(0.75) ? (byte)0x30 : (byte)0x10;
+            }
+            else
+            {
+                if (m_Index == 0x0F)
+                    m_Index = Globals.Generator.NextBool(0.5) ? (byte)0x0F : (byte)0x2F;
+                else m_Index += Globals.Generator.NextBool(0.75) ? (byte)0x00 : (byte)0x20;
+            }
         }
 
         public CellState State
@@ -166,9 +205,11 @@ namespace rat
 
             glyphSet.DrawGlyph(Index, Constants.Glyphs.ASCII.GetGlyph(Solid, Seen, Bloody).color, drawPosition);
 
+            if (Occupant == null) return;
+
             if (Occupied && drawOccupant && Seen)
                 Occupant.Draw(glyphSet, screenPosition);
-            else if (Vacant)
+            else if (Vacant && Seen)
                 if (m_Corpses.Count > 0)
                     glyphSet.DrawGlyph(new Glyph(Constants.Characters.Corpse, Constants.Colors.White), drawPosition);
         }

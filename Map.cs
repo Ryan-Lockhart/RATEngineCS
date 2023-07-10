@@ -17,7 +17,7 @@ namespace rat
     {
 		private bool m_Generating;
 
-		private BitArray m_Solids;
+		private bool[] m_Solids;
 		private Cell[] m_Cells;
 
 		private Point m_Position;
@@ -182,7 +182,7 @@ namespace rat
             m_Bounds = bounds;
             m_Border = border;
 
-            m_Solids = new BitArray((int)m_Bounds.Volume);
+            m_Solids = new bool[m_Bounds.Volume];
             m_Cells = new Cell[m_Bounds.Volume];
 		}
 
@@ -210,7 +210,7 @@ namespace rat
 
         public void Smooth(int iterations = 5, int threshold = 4)
 		{
-            BitArray smoothed = new BitArray(m_Solids);
+            bool[] smoothed = m_Solids;
 
             for (ulong i = 0; i < (ulong)iterations; i++)
             {
@@ -223,9 +223,7 @@ namespace rat
                             smoothed[Index(coord)] = WithinBounds(coord) ? Automatize(coord, threshold) : true;
                         }
 
-                BitArray temp = m_Solids;
-                m_Solids = smoothed;
-                smoothed = temp;
+                (smoothed, m_Solids) = (m_Solids, smoothed);
             }
         }
 
@@ -320,7 +318,7 @@ namespace rat
             throw new Exception("No open cells!");
         }
 
-		public bool IsSolid(in Coord position, in BitArray solids)
+		public bool IsSolid(in Coord position, in bool[] solids)
 		{
 			return IsValid(position) ?
 				m_Solids[Index(position)] : true;
@@ -365,8 +363,10 @@ namespace rat
                     }
         }
 
-        public void RevealMap(in List<Coord> fov)
+        public void RevealMap(in List<Coord> fov, bool resetSeen = true)
         {
+            if (resetSeen) ResetSeen();
+
             foreach (Coord position in fov)
             {
                 Cell? cell = this[position];
@@ -414,12 +414,14 @@ namespace rat
 
         public bool IsValid(in Coord position)
         {
-            throw new NotImplementedException();
+            bool isFlat = m_Bounds.depth == 1;
+            return position.x >= 0 && position.y >= 0 && position.x < m_Bounds.width && position.y < m_Bounds.height && position.z >= 0 && (position.z < m_Bounds.depth || isFlat);
         }
 
         public bool WithinBounds(in Coord position)
         {
-            throw new NotImplementedException();
+            bool isFlat = m_Bounds.depth == 1;
+            return position.x >= m_Border.width && position.y >= m_Border.height && position.x < m_Bounds.width - m_Border.width && position.y < m_Bounds.height - m_Border.height && (position.z >= m_Border.depth || isFlat) && (position.z < m_Bounds.depth - m_Border.depth || isFlat);
         }
 
         public bool IsGenerating() => m_Generating;
@@ -442,10 +444,8 @@ namespace rat
                 fov.Add(cell.Position);
             }
 
-            for (int i = 0; i < 8; i++)
-            {
+            for (int i = 0; i < Settings.Octants.Length; i++)
                 ShadowCast(origin, fov, 1, 1.0, 0.0, Settings.Octants[i], viewDistance);
-            }
 
             return fov;
         }
@@ -472,10 +472,8 @@ namespace rat
                 fov.Add(cell.Position);
             }
 
-            for (int i = 0; i < 8; i++)
-            {
+            for (int i = 0; i < Settings.Octants.Length; i++)
                 ShadowCast(origin, fov, 1, 1.0, 0.0, Settings.Octants[i], viewDistance, angle, span);
-            }
 
             return fov;
         }
@@ -508,12 +506,10 @@ namespace rat
                 fov.Add(cell.Position);
 		    }
 
-		    for (int i = 0; i < 8; i++)
-		    {
-			    ShadowCast(shiftedOrigin, fov, 1, 1.0, 0.0, Settings.Octants[i], viewDistance, angle, span);
-		    }
+		    for (int i = 0; i < Settings.Octants.Length; i++)
+                ShadowCast(shiftedOrigin, fov, 1, 1.0, 0.0, Settings.Octants[i], viewDistance, angle, span);
 
-		    return fov;
+            return fov;
         }
 
         public struct NodeData

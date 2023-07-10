@@ -57,6 +57,8 @@ namespace rat
 
             public static explicit operator Coord(in Point p) => new Coord(p.x, p.y, 0);
             public static Coord ToCoord(in Point p, long z) => new Coord(p.x, p.y, z);
+
+            public override string ToString() => new string($"({x}, {y})");
         }
 
         /// <summary>
@@ -92,22 +94,22 @@ namespace rat
             public static Coord operator +(in Coord lhs, in Size rhs) => new Coord(lhs.x + rhs.width, lhs.y + rhs.height, lhs.z);
             public static Coord operator +(in Coord lhs, in Bounds rhs) => new Coord(lhs.x + rhs.width, lhs.y + rhs.height, lhs.z + rhs.depth);
 
-            public static Coord operator -(in Coord lhs, in Coord rhs) => new Coord(lhs.x - rhs.x, lhs.y - rhs.y, lhs.z + rhs.z);
+            public static Coord operator -(in Coord lhs, in Coord rhs) => new Coord(lhs.x - rhs.x, lhs.y - rhs.y, lhs.z - rhs.z);
             public static Coord operator -(in Coord lhs, in Point rhs) => new Coord(lhs.x - rhs.x, lhs.y - rhs.y, lhs.z);
             public static Coord operator -(in Coord lhs, in Size rhs) => new Coord(lhs.x - rhs.width, lhs.y - rhs.height, lhs.z);
-            public static Coord operator -(in Coord lhs, in Bounds rhs) => new Coord(lhs.x - rhs.width, lhs.y - rhs.height, lhs.z + rhs.depth);
+            public static Coord operator -(in Coord lhs, in Bounds rhs) => new Coord(lhs.x - rhs.width, lhs.y - rhs.height, lhs.z - rhs.depth);
 
-            public static Coord operator *(in Coord lhs, in Coord rhs) => new Coord(lhs.x * rhs.x, lhs.y * rhs.y, lhs.z + rhs.z);
+            public static Coord operator *(in Coord lhs, in Coord rhs) => new Coord(lhs.x * rhs.x, lhs.y * rhs.y, lhs.z * rhs.z);
             public static Coord operator *(in Coord lhs, in Point rhs) => new Coord(lhs.x * rhs.x, lhs.y * rhs.y, lhs.z);
             public static Coord operator *(in Coord lhs, in Size rhs) => new Coord(lhs.x * rhs.width, lhs.y * rhs.height, lhs.z);
-            public static Coord operator *(in Coord lhs, in Bounds rhs) => new Coord(lhs.x * rhs.width, lhs.y * rhs.height, lhs.z + rhs.depth);
+            public static Coord operator *(in Coord lhs, in Bounds rhs) => new Coord(lhs.x * rhs.width, lhs.y * rhs.height, lhs.z * rhs.depth);
             public static Coord operator *(in Coord lhs, double scalar) => new Coord((long)(lhs.x * scalar), (long)(lhs.y * scalar), (long)(lhs.z * scalar));
 
             public static Coord operator /(in Coord lhs, in Coord rhs) => new Coord(lhs.x / rhs.x, lhs.y / rhs.y, lhs.z / rhs.z);
             public static Coord operator /(in Coord lhs, in Point rhs) => new Coord(lhs.x / rhs.x, lhs.y / rhs.y, lhs.z);
             public static Coord operator /(in Coord lhs, in Size rhs) => new Coord(lhs.x / rhs.width, lhs.y / rhs.height, lhs.z);
             public static Coord operator /(in Coord lhs, in Bounds rhs) => new Coord(lhs.x / rhs.width, lhs.y / rhs.height, lhs.z / rhs.depth);
-            public static Coord operator /(in Coord lhs, double scalar) => new Coord((long)(lhs.x / scalar), (long)(lhs.y / scalar), (long)(lhs.z * scalar));
+            public static Coord operator /(in Coord lhs, double scalar) => new Coord((long)(lhs.x / scalar), (long)(lhs.y / scalar), (long)(lhs.z / scalar));
 
             public static bool operator ==(in Coord lhs, in Coord rhs) => lhs.x == rhs.x && lhs.y == rhs.y && lhs.z == rhs.z;
             public static bool operator !=(in Coord lhs, in Coord rhs) => lhs.x != rhs.x && lhs.y != rhs.y && lhs.z != rhs.z;
@@ -116,6 +118,8 @@ namespace rat
             public override int GetHashCode() => HashCode.Combine(x, y, z);
 
             public static implicit operator Point(in Coord c) => new Point(c.x, c.y);
+
+            public override string ToString() => new string($"({x}, {y}, {z})");
         }
 
         /// <summary>
@@ -159,6 +163,8 @@ namespace rat
             public override int GetHashCode() => HashCode.Combine(width, height);
 
             public static explicit operator Bounds(in Size s) => new Bounds(s.width, s.height, 0);
+
+            public override string ToString() => new string($"({width}, {height})");
         }
 
         /// <summary>
@@ -199,7 +205,7 @@ namespace rat
 
             public static Bounds operator /(in Bounds lhs, in Bounds rhs) => new Bounds(lhs.width / rhs.width, lhs.height / rhs.height, lhs.depth / rhs.depth);
             public static Bounds operator /(in Bounds lhs, in Size rhs) => new Bounds(lhs.width / rhs.width, lhs.height / rhs.height, lhs.depth);
-            public static Bounds operator /(in Bounds lhs, double scalar) => new Bounds((uint)(lhs.width / scalar), (uint)(lhs.height / scalar), (uint)(lhs.depth * scalar));
+            public static Bounds operator /(in Bounds lhs, double scalar) => new Bounds((uint)(lhs.width / scalar), (uint)(lhs.height / scalar), (uint)(lhs.depth / scalar));
 
             public static bool operator ==(in Bounds lhs, in Bounds rhs) => lhs.width == rhs.width && lhs.height == rhs.height && lhs.depth == rhs.depth;
             public static bool operator !=(in Bounds lhs, in Bounds rhs) => lhs.width != rhs.width && lhs.height != rhs.height && lhs.depth != rhs.depth;
@@ -209,6 +215,8 @@ namespace rat
 
             public static implicit operator Size(in Bounds b) => new Size(b.width, b.height);
             public static Bounds ToBounds(in Size s, uint depth) => new Bounds(s.width, s.height, depth);
+
+            public override string ToString() => new string($"({width}, {height}, {depth})");
         }
 
         /// <summary>

@@ -74,7 +74,7 @@ namespace rat
         public class GlyphSets
         {
             public static readonly GlyphSetInfo DefaultUIGlyphs = new GlyphSetInfo("Assets\\Glyphs\\glyphs_12x12.png", new Size(12, 12), new Size(16, 16));
-            public static readonly GlyphSetInfo DefaultMapGlyphs = new GlyphSetInfo("Assets\\Glyphs\\tileset_16x16.png", new Size(16, 16), new Size(16, 16));
+            public static readonly GlyphSetInfo DefaultMapGlyphs = new GlyphSetInfo("Assets\\Tilesets\\tileset_16x16.png", new Size(16, 16), new Size(16, 16));
         }
 
         public class Screens

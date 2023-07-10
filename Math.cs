@@ -17,11 +17,11 @@ namespace rat
         public static readonly double PercentOfCircle = 0.002777777777777778;
         public static readonly float PercentOfCircleF = 0.002777777777777778f;
 
-        public static double ToDegrees(double radians) => radians * Deg2Rad;
-        public static double ToRadians(double angle) => angle * Rad2Deg;
+        public static double ToDegrees(double radians) => radians * Rad2Deg;
+        public static double ToRadians(double angle) => angle * Deg2Rad;
 
-        public static float ToDegrees(float radians) => radians * Deg2RadF;
-        public static float ToRadians(float angle) => angle * Rad2DegF;
+        public static float ToDegrees(float radians) => radians * Rad2DegF;
+        public static float ToRadians(float angle) => angle * Deg2RadF;
 
         public static double Atan2(double y, double x)
         {

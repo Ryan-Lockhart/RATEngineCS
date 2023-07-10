@@ -42,8 +42,31 @@ namespace rat
 
         private List<ConfigFlags> m_CurrentFlags;
 
+        private void RecalculateFlags()
+        {
+            var flags = m_CurrentFlags
+                .Cast<ConfigFlags>()
+                .Aggregate((ConfigFlags)0, (s, f) => s | f);
+
+            Raylib.SetWindowState(flags);
+        }
+
+        private void AddFlag(in ConfigFlags flag)
+        {
+            m_CurrentFlags.Add(flag);
+            RecalculateFlags();
+        }
+
+        private void RemoveFlag(in ConfigFlags flag)
+        {
+            m_CurrentFlags.Remove(flag);
+            RecalculateFlags();
+        }
+
         public Engine(ulong seed)
         {
+            Globals.Generator.Seed = seed;
+
             Size windowSize = Screens.WindowSize * GlyphSets.DefaultMapGlyphs.glyphSize;
 
             Raylib.InitWindow((int)windowSize.width, (int)windowSize.height, "RATEngine");
@@ -52,15 +75,12 @@ namespace rat
             {
                 ConfigFlags.FLAG_WINDOW_ALWAYS_RUN,
                 ConfigFlags.FLAG_WINDOW_UNDECORATED,
-                ConfigFlags.FLAG_WINDOW_TOPMOST,
+                //ConfigFlags.FLAG_WINDOW_TOPMOST,
                 ConfigFlags.FLAG_VSYNC_HINT
             };
 
-            var flags = m_CurrentFlags
-                .Cast<int>()
-                .Aggregate(0, (s, f) => s | f);
+            RecalculateFlags();
 
-            Raylib.SetWindowState((ConfigFlags)flags);
             Raylib.DisableCursor();
 
             m_GameSet = new GlyphSet(GlyphSets.DefaultMapGlyphs);
@@ -77,15 +97,14 @@ namespace rat
 
             m_Cursor = new Cursor(m_Map, Point.Zero, Size.One);
 
-            m_Map.Generate(0.4f);
+            m_Map.Generate(0.0f);
             m_Map.Smooth(5, 4);
 
             m_Map.Populate();
 
             ulong currentID = 0;
 
-            m_Player = new Actor(currentID, m_Map, "Jenkins", "A spry lad clad in armor and blade", Glyphs.ASCII.Player, 1, 10.0f, 5.0f, 7.5f, 0.50f, 0.75f, false, false);
-            currentID++;
+            m_Player = new Actor(ref currentID, m_Map[new Coord(50, 50, 0)], "Jenkins", "A spry lad clad in armor and blade", Glyphs.ASCII.Player, 1, 10.0f, 5.0f, 7.5f, 0.50f, 0.75f, false, false);
 
             m_Actors = new List<Actor?>();
             m_Living = new List<Actor?>();
@@ -94,9 +113,9 @@ namespace rat
             m_Actors.Add(m_Player);
             m_Living.Add(m_Player);
 
-            int totalEnemies = Globals.Generator.NextInt(Settings.MinimumEnemies, Settings.MaximumEnemies);
+            //int totalEnemies = Globals.Generator.NextInt(Settings.MinimumEnemies, Settings.MaximumEnemies);
 
-            SummonEnemies(ref currentID, totalEnemies);
+            //SummonEnemies(ref currentID, totalEnemies);
 
             while (!exit)
             {
@@ -134,6 +153,11 @@ namespace rat
                                 break;
                             case KeyboardKey.KEY_KP_5:
                                 m_CurrentAction = Action.Mine;
+                                m_ActionSelect = false;
+                                break;
+                            case KeyboardKey.KEY_ESCAPE:
+                            case KeyboardKey.KEY_TAB:
+                                m_CurrentAction = Action.None;
                                 m_ActionSelect = false;
                                 break;
                         }
@@ -177,109 +201,120 @@ namespace rat
             Raylib.CloseWindow();
         }
 
-        public void ToggleFullscreen() => m_Fullscreen = !m_Fullscreen;
+        public void ToggleFullscreen()
+        {
+            m_Fullscreen = !m_Fullscreen;
+
+            if (m_Fullscreen)
+            {
+                if (!m_CurrentFlags.Contains(ConfigFlags.FLAG_FULLSCREEN_MODE))
+                    AddFlag(ConfigFlags.FLAG_FULLSCREEN_MODE);
+            }
+            else
+            {
+                if (m_CurrentFlags.Contains(ConfigFlags.FLAG_FULLSCREEN_MODE))
+                    RemoveFlag(ConfigFlags.FLAG_FULLSCREEN_MODE);
+            }
+        }
 
         public virtual void Input(in KeyboardKey key)
         {
-            int x_input = 0;
-            int y_input = 0;
+            if (m_Map == null) return;
 
-            if (m_Map != null)
+            switch (key)
             {
-                if (m_Player != null && m_PlayerActed && m_Player.Alive)
-                {
-                    m_PlayerActed = true;
+                case KeyboardKey.KEY_SPACE:
+                    m_Locked = !m_Locked;
+                    break;
+                case KeyboardKey.KEY_RIGHT:
+                    m_Locked = false;
+                    m_Map.Move(new Point(Settings.CameraSpeed, 0));
+                    break;
+                case KeyboardKey.KEY_LEFT:
+                    m_Locked = false;
+                    m_Map.Move(new Point(-Settings.CameraSpeed, 0));
+                    break;
+                case KeyboardKey.KEY_DOWN:
+                    m_Locked = false;
+                    m_Map.Move(new Point(0, -Settings.CameraSpeed));
+                    break;
+                case KeyboardKey.KEY_UP:
+                    m_Locked = false;
+                    m_Map.Move(new Point(0, Settings.CameraSpeed));
+                    break;
+                case KeyboardKey.KEY_F1:
+                    m_ShowControls = !m_ShowControls;
+                    break;
+                case KeyboardKey.KEY_F2:
+                    ToggleFullscreen();
+                    break;
+                case KeyboardKey.KEY_F3:
+                    m_Map.RevealMap();
+                    break;
+                case KeyboardKey.KEY_F4:
+                    m_Map.RecalculateIndices();
+                    break;
+                default:
 
-                    switch (key)
+                    if (m_Player != null && m_Player.Alive && !m_PlayerActed)
                     {
-                        case KeyboardKey.KEY_Z:
-                            m_Player.Stance = Stance.Prone;
-                            break;
-                        case KeyboardKey.KEY_X:
-                            m_Player.Stance = Stance.Erect;
-                            break;
-                        case KeyboardKey.KEY_C:
-                            m_Player.Stance = Stance.Crouch;
-                            break;
-                        case KeyboardKey.KEY_L:
-                            if (m_Cursor != null && m_Cursor.Cell != null)
-                                m_Player.Act(m_Cursor.Cell.Position, Action.LookAt, false);
-                            break;
-                        default:
-                            m_PlayerActed = false;
-                            break;
-                    }
-                }
-                else
-                {
-                    switch (key)
-                    {
-                        case KeyboardKey.KEY_SPACE:
-                            m_Locked = !m_Locked;
-                            break;
-                        case KeyboardKey.KEY_RIGHT:
-                            m_Locked = false;
-                            m_Map.Move(new Point(Settings.CameraSpeed, 0));
-                            break;
-                        case KeyboardKey.KEY_LEFT:
-                            m_Locked = false;
-                            m_Map.Move(new Point(-Settings.CameraSpeed, 0));
-                            break;
-                        case KeyboardKey.KEY_DOWN:
-                            m_Locked = false;
-                            m_Map.Move(new Point(0, -Settings.CameraSpeed));
-                            break;
-                        case KeyboardKey.KEY_UP:
-                            m_Locked = false;
-                            m_Map.Move(new Point(0, Settings.CameraSpeed));
-                            break;
-                        case KeyboardKey.KEY_F1:
-                            m_ShowControls = !m_ShowControls;
-                            break;
-                        case KeyboardKey.KEY_F2:
-                            ToggleFullscreen();
-                            break;
-                        case KeyboardKey.KEY_F3:
-                            m_Map.RevealMap();
-                            break;
-                        case KeyboardKey.KEY_F4:
-                            m_Map.RecalculateIndices();
-                            break;
-                        default:
+                        m_PlayerActed = true;
 
-                            if (m_Player != null && m_Player.Alive && !m_PlayerActed)
+                        switch (key)
+                        {
+                            case KeyboardKey.KEY_Z:
+                                m_Player.Stance = Stance.Prone;
+                                break;
+                            case KeyboardKey.KEY_X:
+                                m_Player.Stance = Stance.Erect;
+                                break;
+                            case KeyboardKey.KEY_C:
+                                m_Player.Stance = Stance.Crouch;
+                                break;
+                            case KeyboardKey.KEY_L:
+                                if (m_Cursor != null && m_Cursor.Cell != null)
+                                    m_Player.Act(m_Cursor.Cell.Position, Action.LookAt, false);
+                                break;
+                            default:
+                                m_PlayerActed = false;
+                                break;
+                        }
+
+                        if (!m_PlayerActed)
+                        {
+                            int x_input = 0;
+                            int y_input = 0;
+
+                            if (key == KeyboardKey.KEY_D || key == KeyboardKey.KEY_KP_6 || key == KeyboardKey.KEY_KP_3 || key == KeyboardKey.KEY_KP_9) { x_input = 1; }
+                            else if (key == KeyboardKey.KEY_A || key == KeyboardKey.KEY_KP_4 || key == KeyboardKey.KEY_KP_7 || key == KeyboardKey.KEY_KP_1) { x_input = -1; }
+
+                            if (key == KeyboardKey.KEY_S || key == KeyboardKey.KEY_KP_2 || key == KeyboardKey.KEY_KP_3 || key == KeyboardKey.KEY_KP_1) { y_input = 1; }
+                            else if (key == KeyboardKey.KEY_W || key == KeyboardKey.KEY_KP_8 || key == KeyboardKey.KEY_KP_9 || key == KeyboardKey.KEY_KP_7) { y_input = -1; }
+
+                            if (key == KeyboardKey.KEY_KP_5)
                             {
-                                if (key == KeyboardKey.KEY_D || key == KeyboardKey.KEY_KP_6 || key == KeyboardKey.KEY_KP_3 || key == KeyboardKey.KEY_KP_9) { x_input = 1; }
-                                else if (key == KeyboardKey.KEY_A || key == KeyboardKey.KEY_KP_4 || key == KeyboardKey.KEY_KP_7 || key == KeyboardKey.KEY_KP_1) { x_input = -1; }
-
-                                if (key == KeyboardKey.KEY_S || key == KeyboardKey.KEY_KP_2 || key == KeyboardKey.KEY_KP_3 || key == KeyboardKey.KEY_KP_1) { y_input = 1; }
-                                else if (key == KeyboardKey.KEY_W || key == KeyboardKey.KEY_KP_8 || key == KeyboardKey.KEY_KP_9 || key == KeyboardKey.KEY_KP_7) { y_input = -1; }
-
-                                if (key == KeyboardKey.KEY_KP_5)
-                                {
-                                    m_PlayerActed = true;
-                                    m_CurrentAction = Action.None;
-                                    return;
-                                }
-
-                                if (x_input != 0 || y_input != 0)
-                                {
-                                    Coord actPosition = new Coord(x_input, y_input, 0);
-
-                                    if (m_CurrentAction != Action.None)
-                                    {
-                                        m_Player.Act(actPosition, m_CurrentAction, true);
-                                        m_CurrentAction = Action.None;
-                                    }
-                                    else m_Player.Act(actPosition, true);
-
-                                    m_PlayerActed = true;
-                                }
+                                m_PlayerActed = true;
+                                m_CurrentAction = Action.None;
+                                return;
                             }
 
-                            break;
+                            if (x_input != 0 || y_input != 0)
+                            {
+                                Coord actPosition = new Coord(x_input, y_input, 0);
+
+                                if (m_CurrentAction != Action.None)
+                                {
+                                    m_Player.Act(actPosition, m_CurrentAction, true);
+                                    m_CurrentAction = Action.None;
+                                }
+                                else m_Player.Act(actPosition, true);
+
+                                m_PlayerActed = true;
+                            }
+                        }
                     }
-                }
+
+                    break;
             }
         }
 
@@ -309,7 +344,7 @@ namespace rat
                                     break;
                                 case Stance.Crouch:
                                     view_distance = 16.0;
-                                    view_span = 180.0;
+                                    view_span = 150.0;
                                     break;
                                 case Stance.Prone:
                                     view_distance = 48.0;
@@ -317,7 +352,7 @@ namespace rat
                                     break;
                             }
 
-                            m_Map.CalculateFOV(m_Player.Position, view_distance, m_Player.Angle, view_span);
+                            m_Map.RevealMap(m_Map.CalculateFOV(m_Player.Position, view_distance, m_Player.Angle, view_span));
                         }
                     }
                 }
@@ -339,12 +374,12 @@ namespace rat
             {
                 if (m_ShowLog)
                 {
-                    if (m_Cursor != null && (double)(m_Cursor.Transform.position - m_Map.Position).x < 96.0 * 0.925)
+                    if (m_Cursor != null && (m_Cursor.Transform.position - m_Map.Position).x < 96.0 * 0.925)
                         m_ShowLog = false;
                 }
                 else
                 {
-                    if (m_Cursor != null && (double)(m_Cursor.Transform.position - m_Map.Position).x > 96.0 * 0.975)
+                    if (m_Cursor != null && (m_Cursor.Transform.position - m_Map.Position).x > 96.0 * 0.975)
                         m_ShowLog = true;
                 }
             }
@@ -378,9 +413,14 @@ namespace rat
             {
                 m_Map.Draw(m_GameSet, 0, Screens.MapDisplay.position);
 
-                Point mapPosition = m_Map.Position;
-
-                string text = $"{(m_Player != null ? m_Player.Name : "???")}:\nHealth: {(m_Player != null ? (int)Math.Ceiling(m_Player.CurrentHealth) : "(?.?)")}/{(m_Player != null ? (int)Math.Ceiling(m_Player.MaxHealth) : "(?.?)")}\nStance: {(m_Player != null ? m_Player.Stance : "???")}\nCamera {(m_Locked ? "Locked" : "Unlocked")}";
+                string text = 
+                    $"{(m_Player != null ? m_Player.Name : "???")}:\n" +
+                    $"{(m_Player != null ? m_Player.Position : "???")}:\n" +
+                    $"Angle: {(m_Player != null ? m_Player.Angle : "???")}:\n" +
+                    $"Health: {(m_Player != null ? (int)Math.Ceiling(m_Player.CurrentHealth) : "(?.?)")}/{(m_Player != null ? (int)Math.Ceiling(m_Player.MaxHealth) : "(?.?)")}\n" +
+                    $"Stance: {(m_Player != null ? m_Player.Stance : "???")}\n" +
+                    $"Camera {(m_Locked ? "Locked" : "Unlocked")}\n" +
+                    $"Camera Position: {m_Map.Position}";
 
                 DrawLabel(text, new Point(0, 3), Size.One, Alignments.UpperLeft, Colors.White);
             }
@@ -710,7 +750,7 @@ namespace rat
             Cell? cell = cursor.Cell;
             Actor? actor = cursor.Actor;
 
-            string text = "";
+            string text;
 
             if (cell != null)
             {
@@ -722,31 +762,34 @@ namespace rat
 
                     var corpses = cell.Corpses;
 
-                    if (corpses.Count > 0)
+                    if (corpses != null)
                     {
-                        text += "\n\nCorpses:";
-
-                        if (Settings.UseCorpseLimit)
+                        if (corpses.Count > 0)
                         {
-                            for (int i = 0; i < corpses.Count; i++)
+                            text += "\n\nCorpses:";
+
+                            if (Settings.UseCorpseLimit)
                             {
-                                Actor? corpse = corpses[i];
-                                if (corpse != null) { text += "\n " + corpse.Name; }
+                                for (int i = 0; i < corpses.Count; i++)
+                                {
+                                    Actor? corpse = corpses[i];
+                                    if (corpse != null) { text += "\n " + corpse.Name; }
 
-                                if (i > Settings.CorpseLimit) break;
+                                    if (i > Settings.CorpseLimit) break;
+                                }
+
+                                if (corpses.Count > Settings.CorpseLimit)
+                                    text += $"\n +{corpses.Count - Settings.CorpseLimit} more...";
                             }
-
-                            if (corpses.Count > Settings.CorpseLimit)
-                                text += $"\n +{corpses.Count - Settings.CorpseLimit} more...";
+                            else
+                            {
+                                foreach (var corpse in corpses)
+                                {
+                                    if (corpse == null) continue;
+                                    text += "\n" + corpse.Name;
+                                }
+                            }
                         }
-                        else
-                        {
-                            foreach (var corpse in corpses)
-                            {
-                                if (corpse == null) continue;
-                                text += "\n" + corpse.Name;
-                            }
-                        }                        
                     }
                 }
                 else if (cell.Explored)
@@ -764,7 +807,7 @@ namespace rat
                 text,
                 attached ?
                     drawRect.position + (attached ? offset : Point.Zero) :
-                    Screens.MapToUI(new Point(Screens.MapDisplay.position.x, Screens.FooterBar.position.y)),
+                    new Point(Screens.MapDisplay.position.x + 128, Screens.FooterBar.position.y),
                 Size.One,
                 attached ?
                     cursor.Alignment :
@@ -819,29 +862,28 @@ namespace rat
                 switch (next)
                 {
                     case 0:
-                        newlySpawned = new Actor(currentID, m_Map, "Gremlin", "A dimunitive creature with a cunning disposition", new Glyph(Characters.Entity, Colors.BrightYellow), 1, 1.5f, 0.65f, 0.0f, 0.266f, 0.475f, true);
-                    break;
-
+                        newlySpawned = new Actor(ref currentID, m_Map, "Gremlin", "A dimunitive creature with a cunning disposition", new Glyph(Characters.Entity, Colors.BrightYellow), 1, 1.5f, 0.65f, 0.0f, 0.266f, 0.475f, true);
+                        break;
                     case 1:
-                        newlySpawned = new Actor(currentID, m_Map, "Goblin", "A dexterous and selfish humanoid", new Glyph(Characters.Entity, Colors.LightGreen), 1, 3.5f, 1.25f, 0.5f, 0.375f, 0.675f, true);
+                        newlySpawned = new Actor(ref currentID, m_Map, "Goblin", "A dexterous and selfish humanoid", new Glyph(Characters.Entity, Colors.LightGreen), 1, 3.5f, 1.25f, 0.5f, 0.375f, 0.675f, true);
                         break;
                     case 2:
-                        newlySpawned = new Actor(currentID, m_Map, "Ork", "A brutal and violent humanoid", new Glyph(Characters.Entity, Colors.BrightOrange), 1, 12.5f, 3.5f, 1.25f, 0.666f, 0.275f, true);
+                        newlySpawned = new Actor(ref currentID, m_Map, "Ork", "A brutal and violent humanoid", new Glyph(Characters.Entity, Colors.BrightOrange), 1, 12.5f, 3.5f, 1.25f, 0.666f, 0.275f, true);
                         break;
                     case 3:
-                        newlySpawned = new Actor(currentID, m_Map, "Troll", "A giant humaniod of great strength", new Glyph(Characters.Entity, Colors.BrightRed), 1, 25.0f, 12.5f, 2.5f, 0.125f, 0.114f, true);
+                        newlySpawned = new Actor(ref currentID, m_Map, "Troll", "A giant humaniod of great strength", new Glyph(Characters.Entity, Colors.BrightRed), 1, 25.0f, 12.5f, 2.5f, 0.125f, 0.114f, true);
                         break;
                     case 4:
-                        newlySpawned = new Actor(currentID, m_Map, "Draugr", "An undead servant of a wraith", new Glyph(Characters.Entity, Colors.DarkMarble), 1, 7.5f, 2.5f, 5.0f, 0.675f, 0.221f, true);
+                        newlySpawned = new Actor(ref currentID, m_Map, "Draugr", "An undead servant of a wraith", new Glyph(Characters.Entity, Colors.DarkMarble), 1, 7.5f, 2.5f, 5.0f, 0.675f, 0.221f, true);
                         break;
                     case 5:
-                        newlySpawned = new Actor(currentID, m_Map, "Basilisk", "A large hexapedal reptile of terrible power", new Glyph(Characters.Entity, Colors.Intrite), 1, 17.5f, 7.5f, 3.75f, 0.425f, 0.321f, true);
+                        newlySpawned = new Actor(ref currentID, m_Map, "Basilisk", "A large hexapedal reptile of terrible power", new Glyph(Characters.Entity, Colors.Intrite), 1, 17.5f, 7.5f, 3.75f, 0.425f, 0.321f, true);
                         break;
                     case 6:
-                        newlySpawned = new Actor(currentID, m_Map, "Serpentman", "A slithering humanoid with superior agility", new Glyph(Characters.Entity, Colors.BrightBlue), 1, 17.5f, 7.5f, 3.75f, 0.425f, 0.321f, true);
+                        newlySpawned = new Actor(ref currentID, m_Map, "Serpentman", "A slithering humanoid with superior agility", new Glyph(Characters.Entity, Colors.BrightBlue), 1, 17.5f, 7.5f, 3.75f, 0.425f, 0.321f, true);
                         break;
                     case 7:
-                        newlySpawned = new Actor(currentID, m_Map, "Wraith", "An eldritch abomination! Woe upon thee...", new Glyph(Characters.Entity, Colors.BrightMagenta), 2, 125.0f, 75.0f, 30.0f, 0.75f, 0.975f, true);
+                        newlySpawned = new Actor(ref currentID, m_Map, "Wraith", "An eldritch abomination! Woe upon thee...", new Glyph(Characters.Entity, Colors.BrightMagenta), 2, 125.0f, 75.0f, 30.0f, 0.75f, 0.975f, true);
                         break;
                 }
 
