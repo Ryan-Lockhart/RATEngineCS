@@ -8,7 +8,11 @@ namespace rat
 {
     public class Globals
     {
-        public static Random.RandomEngine Generator = new Random.RandomEngine();
+        public static void Reseed(int seed) => Generator = new Random(seed);
+
+        public static void ClearLog() => MessageLog.Clear();
+
+        public static Random Generator = new Random();
         public static Queue<string> MessageLog = new Queue<string>();
     }
 }

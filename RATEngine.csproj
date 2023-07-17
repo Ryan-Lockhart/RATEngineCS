@@ -15,6 +15,12 @@
   </ItemGroup>
 
   <ItemGroup>
+    <Reference Include="RandomEngineCS">
+      <HintPath>RandomEngineCS.dll</HintPath>
+    </Reference>
+  </ItemGroup>
+
+  <ItemGroup>
     <None Update="Assets\Glyphs\glyphs_12x12.png">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </None>
@@ -35,9 +41,6 @@
     </None>
     <None Update="Assets\Tilesets\tileset_16x16_without-floor.png">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-    </None>
-    <None Update="RandomEngine.dll">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
   </ItemGroup>
 

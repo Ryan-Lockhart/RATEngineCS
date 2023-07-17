@@ -14,7 +14,8 @@ namespace rat
         private int m_FPS;
 
         private bool m_Fullscreen;
-        private bool m_Locked;
+        private bool m_Locked = true;
+        private bool m_Exit = false;
 
         private GlyphSet m_GameSet;
         private GlyphSet m_UISet;
@@ -33,12 +34,23 @@ namespace rat
         private Action m_CurrentAction;
         private Coord m_ActionPosition;
 
-        private List<Actor?> m_Actors;
-        private List<Actor?> m_Living;
-        private List<Actor?> m_Dead;
+        private ulong m_CurrentID;
 
+        private List<Actor?> m_Actors;
+        private int TotalActors => m_Actors.Count;
+        private List<Actor?> m_Living;
+        private int TotalAlive => m_Actors.Count;
+        private List<Actor?> m_Dead;
+        private int TotalDead => m_Actors.Count;
+
+        private DateTime m_LastInputTime;
         private DateTime m_LastUpdateTime;
         private DateTime m_LastSummonTime;
+
+        private DateTime m_ThisFrame = DateTime.Now;
+        private DateTime m_LastFrame = DateTime.Now;
+
+        private TimeSpan m_DeltaTime;
 
         private List<ConfigFlags> m_CurrentFlags;
 
@@ -63,9 +75,9 @@ namespace rat
             RecalculateFlags();
         }
 
-        public Engine(ulong seed)
+        public Engine(int seed)
         {
-            Globals.Generator.Seed = seed;
+            Globals.Reseed(seed);
 
             Size windowSize = Screens.WindowSize * GlyphSets.DefaultMapGlyphs.glyphSize;
 
@@ -86,25 +98,11 @@ namespace rat
             m_GameSet = new GlyphSet(GlyphSets.DefaultMapGlyphs);
             m_UISet = new GlyphSet(GlyphSets.DefaultUIGlyphs);
 
-            bool exit = false;
-
-            DateTime lastFrame = DateTime.Now;
-            DateTime thisFrame = DateTime.Now;
-
-            TimeSpan deltaTime;
-
-            m_Map = new Map(Settings.MapSize, Bounds.Sixteen);
+            m_Map = new Map(Settings.MapSize, Settings.BorderSize, Settings.MapGeneration.TunnelHeavy);
 
             m_Cursor = new Cursor(m_Map, Point.Zero, Size.One);
 
-            m_Map.Generate(0.0f);
-            m_Map.Smooth(5, 4);
-
-            m_Map.Populate();
-
-            ulong currentID = 0;
-
-            m_Player = new Actor(ref currentID, m_Map[new Coord(50, 50, 0)], "Jenkins", "A spry lad clad in armor and blade", Glyphs.ASCII.Player, 1, 10.0f, 5.0f, 7.5f, 0.50f, 0.75f, false, false);
+            m_Player = new Actor(ref m_CurrentID, m_Map, "Jenkins", "A spry lad clad in armor and blade", Glyphs.ASCII.Player, 1, 10.0f, 5.0f, 7.5f, 0.50f, 0.75f, false, false);
 
             m_Actors = new List<Actor?>();
             m_Living = new List<Actor?>();
@@ -113,91 +111,24 @@ namespace rat
             m_Actors.Add(m_Player);
             m_Living.Add(m_Player);
 
-            //int totalEnemies = Globals.Generator.NextInt(Settings.MinimumEnemies, Settings.MaximumEnemies);
+            int totalEnemies = Globals.Generator.Next(Settings.Population.MinimumInitialEnemies, Settings.Population.MaximumInitialEnemies);
 
-            //SummonEnemies(ref currentID, totalEnemies);
+            SummonEnemies(ref m_CurrentID, totalEnemies);
 
-            while (!exit)
+            while (!m_Exit)
             {
-                lastFrame = thisFrame;
-                thisFrame = DateTime.Now;
-                deltaTime = thisFrame - lastFrame;
+                m_LastFrame = m_ThisFrame;
+                m_ThisFrame = DateTime.Now;
+                m_DeltaTime = m_ThisFrame - m_LastFrame;
 
-                m_FPS = deltaTime.Milliseconds;
+                if (m_DeltaTime.Milliseconds != 0)
+                    m_FPS = 1000 / m_DeltaTime.Milliseconds;
 
-                KeyboardKey keyPressed = KeyboardKey.KEY_NULL;
-
-                do
-                {
-                    keyPressed = (KeyboardKey)Raylib.GetKeyPressed();
-
-                    if (m_ActionSelect)
-                    {
-                        switch (keyPressed)
-                        {
-                            case KeyboardKey.KEY_KP_1:
-                                m_CurrentAction = Action.MoveTo;
-                                m_ActionSelect = false;
-                                break;
-                            case KeyboardKey.KEY_KP_2:
-                                m_CurrentAction = Action.LookAt;
-                                m_ActionSelect = false;
-                                break;
-                            case KeyboardKey.KEY_KP_3:
-                                m_CurrentAction = Action.Attack;
-                                m_ActionSelect = false;
-                                break;
-                            case KeyboardKey.KEY_KP_4:
-                                m_CurrentAction = Action.Push;
-                                m_ActionSelect = false;
-                                break;
-                            case KeyboardKey.KEY_KP_5:
-                                m_CurrentAction = Action.Mine;
-                                m_ActionSelect = false;
-                                break;
-                            case KeyboardKey.KEY_ESCAPE:
-                            case KeyboardKey.KEY_TAB:
-                                m_CurrentAction = Action.None;
-                                m_ActionSelect = false;
-                                break;
-                        }
-                    }
-                    else
-                    {
-                        switch (keyPressed)
-                        {
-                            case KeyboardKey.KEY_ESCAPE:
-                                if (!m_ActionSelect)
-                                    exit = true;
-                                else
-                                {
-                                    m_CurrentAction = Action.None;
-                                    m_ActionSelect = false;
-                                }
-                                break;
-                            case KeyboardKey.KEY_BACKSPACE:
-                                Globals.MessageLog.Clear();
-                                break;
-                            case KeyboardKey.KEY_TAB:
-                                if (!m_ActionSelect)
-                                {
-                                    m_ActionSelect = true;
-                                    m_CurrentAction = Action.None;
-                                }
-                                else m_ActionSelect = false;
-                                break;
-                            default:
-                                Input(keyPressed);
-                                break;
-                        }
-                    }
-                }
-                while (keyPressed != KeyboardKey.KEY_NULL);
-
-                Update(deltaTime);
-                Render(deltaTime);
+                Input();
+                Update();
+                Render();
             }
-
+            
             Raylib.CloseWindow();
         }
 
@@ -217,108 +148,190 @@ namespace rat
             }
         }
 
-        public virtual void Input(in KeyboardKey key)
+        private void SetLastInput() => m_LastInputTime = DateTime.Now;
+        private bool AllowInput() => (DateTime.Now - m_LastInputTime).Milliseconds > Settings.MinimumInputTime;
+
+        private void SetLastUpdate() => m_LastUpdateTime = DateTime.Now;
+        private bool AllowUpdate() => (DateTime.Now - m_LastUpdateTime).Milliseconds > Settings.MinimumUpdateTime;
+
+        private void SetLastSummon() => m_LastSummonTime = DateTime.Now;
+        private bool AllowSummon() => (DateTime.Now - m_LastSummonTime).Milliseconds > Settings.MinimumSummonTime;
+
+        public virtual void Input()
         {
+            bool heldInput = AllowInput();
+
+            if (m_ActionSelect)
+            {
+                if (Raylib.IsKeyPressed(KeyboardKey.KEY_KP_1))
+                {
+                    m_CurrentAction = Action.MoveTo;
+                    m_ActionSelect = false;
+                }
+                else if (Raylib.IsKeyPressed(KeyboardKey.KEY_KP_2))
+                {
+                    m_CurrentAction = Action.LookAt;
+                    m_ActionSelect = false;
+                }
+                else if (Raylib.IsKeyPressed(KeyboardKey.KEY_KP_3))
+                {
+                    m_CurrentAction = Action.Attack;
+                    m_ActionSelect = false;
+                }
+                else if (Raylib.IsKeyPressed(KeyboardKey.KEY_KP_4))
+                {
+                    m_CurrentAction = Action.Push;
+                    m_ActionSelect = false;
+                }
+                else if (Raylib.IsKeyPressed(KeyboardKey.KEY_KP_5))
+                {
+                    m_CurrentAction = Action.Mine;
+                    m_ActionSelect = false;
+                }
+                else if (Raylib.IsKeyPressed(KeyboardKey.KEY_ESCAPE) || Raylib.IsKeyPressed(KeyboardKey.KEY_TAB))
+                {
+                    m_CurrentAction = Action.None;
+                    m_ActionSelect = false;
+                }
+            }
+            else
+            {
+                if (Raylib.IsKeyPressed(KeyboardKey.KEY_ESCAPE))
+                {
+                    if (!m_ActionSelect)
+                        m_Exit = true;
+                    else
+                    {
+                        m_CurrentAction = Action.None;
+                        m_ActionSelect = false;
+                    }
+                }
+                else if (Raylib.IsKeyPressed(KeyboardKey.KEY_BACKSPACE))
+                {
+                    Globals.ClearLog();
+                }
+                else if (Raylib.IsKeyPressed(KeyboardKey.KEY_TAB))
+                {
+                    if (!m_ActionSelect)
+                    {
+                        m_ActionSelect = true;
+                        m_CurrentAction = Action.None;
+                    }
+                    else m_ActionSelect = false;
+                }
+            }
+
             if (m_Map == null) return;
 
-            switch (key)
+            if (Raylib.IsKeyPressed(KeyboardKey.KEY_SPACE))
             {
-                case KeyboardKey.KEY_SPACE:
-                    m_Locked = !m_Locked;
-                    break;
-                case KeyboardKey.KEY_RIGHT:
-                    m_Locked = false;
-                    m_Map.Move(new Point(Settings.CameraSpeed, 0));
-                    break;
-                case KeyboardKey.KEY_LEFT:
-                    m_Locked = false;
-                    m_Map.Move(new Point(-Settings.CameraSpeed, 0));
-                    break;
-                case KeyboardKey.KEY_DOWN:
-                    m_Locked = false;
-                    m_Map.Move(new Point(0, -Settings.CameraSpeed));
-                    break;
-                case KeyboardKey.KEY_UP:
-                    m_Locked = false;
-                    m_Map.Move(new Point(0, Settings.CameraSpeed));
-                    break;
-                case KeyboardKey.KEY_F1:
-                    m_ShowControls = !m_ShowControls;
-                    break;
-                case KeyboardKey.KEY_F2:
-                    ToggleFullscreen();
-                    break;
-                case KeyboardKey.KEY_F3:
-                    m_Map.RevealMap();
-                    break;
-                case KeyboardKey.KEY_F4:
-                    m_Map.RecalculateIndices();
-                    break;
-                default:
+                m_Locked = !m_Locked;
+            }
 
-                    if (m_Player != null && m_Player.Alive && !m_PlayerActed)
+            if (!m_Locked)
+            {
+                int x_input = 0;
+                int y_input = 0;
+
+                if (heldInput)
+                {
+                    if (Raylib.IsKeyDown(KeyboardKey.KEY_RIGHT)) x_input = Settings.CameraSpeed;
+                    else if (Raylib.IsKeyDown(KeyboardKey.KEY_LEFT)) x_input = -Settings.CameraSpeed;
+
+                    if (Raylib.IsKeyDown(KeyboardKey.KEY_UP)) y_input = -Settings.CameraSpeed;
+                    else if (Raylib.IsKeyDown(KeyboardKey.KEY_DOWN)) y_input = Settings.CameraSpeed;
+
+                    if (x_input != 0 || y_input != 0)
                     {
-                        m_PlayerActed = true;
+                        m_Map.Move(new Point(x_input, y_input));
+                        SetLastInput();
+                        return;
+                    }                    
+                }
+            }
+            
+            if (Raylib.IsKeyPressed(KeyboardKey.KEY_F1))
+            {
+                m_ShowControls = !m_ShowControls;
+            }
+            else if (Raylib.IsKeyPressed(KeyboardKey.KEY_F2))
+            {
+                ToggleFullscreen();
+            }
+            else if (Raylib.IsKeyPressed(KeyboardKey.KEY_F3))
+            {
+                m_Map.RevealMap();
+            }
+            else if (Raylib.IsKeyPressed(KeyboardKey.KEY_F4))
+            {
+                m_Map.RecalculateIndices();
+            }
 
-                        switch (key)
-                        {
-                            case KeyboardKey.KEY_Z:
-                                m_Player.Stance = Stance.Prone;
-                                break;
-                            case KeyboardKey.KEY_X:
-                                m_Player.Stance = Stance.Erect;
-                                break;
-                            case KeyboardKey.KEY_C:
-                                m_Player.Stance = Stance.Crouch;
-                                break;
-                            case KeyboardKey.KEY_L:
-                                if (m_Cursor != null && m_Cursor.Cell != null)
-                                    m_Player.Act(m_Cursor.Cell.Position, Action.LookAt, false);
-                                break;
-                            default:
-                                m_PlayerActed = false;
-                                break;
-                        }
+            if (m_Player != null && m_Player.Alive && !m_PlayerActed)
+            {
+                m_PlayerActed = true;
 
-                        if (!m_PlayerActed)
-                        {
-                            int x_input = 0;
-                            int y_input = 0;
+                if (Raylib.IsKeyPressed(KeyboardKey.KEY_Z))
+                {
+                    m_Player.Stance = Stance.Prone;
+                }
+                else if (Raylib.IsKeyPressed(KeyboardKey.KEY_X))
+                {
+                    m_Player.Stance = Stance.Erect;
+                }
+                else if (Raylib.IsKeyPressed(KeyboardKey.KEY_C))
+                {
+                    m_Player.Stance = Stance.Crouch;
+                }
+                else if (Raylib.IsKeyPressed(KeyboardKey.KEY_L))
+                {
+                    if (m_Cursor != null && m_Cursor.Cell != null)
+                        m_Player.Act(m_Cursor.Cell.Position, Action.LookAt, false);
+                }
+                else
+                {
+                    int x_input = 0;
+                    int y_input = 0;
 
-                            if (key == KeyboardKey.KEY_D || key == KeyboardKey.KEY_KP_6 || key == KeyboardKey.KEY_KP_3 || key == KeyboardKey.KEY_KP_9) { x_input = 1; }
-                            else if (key == KeyboardKey.KEY_A || key == KeyboardKey.KEY_KP_4 || key == KeyboardKey.KEY_KP_7 || key == KeyboardKey.KEY_KP_1) { x_input = -1; }
+                    if (heldInput)
+                    {
+                        if (Raylib.IsKeyDown(KeyboardKey.KEY_D) || Raylib.IsKeyDown(KeyboardKey.KEY_KP_6) || Raylib.IsKeyDown(KeyboardKey.KEY_KP_3) || Raylib.IsKeyDown(KeyboardKey.KEY_KP_9)) { x_input = 1; }
+                        else if (Raylib.IsKeyDown(KeyboardKey.KEY_A) || Raylib.IsKeyDown(KeyboardKey.KEY_KP_4) || Raylib.IsKeyDown(KeyboardKey.KEY_KP_7) || Raylib.IsKeyDown(KeyboardKey.KEY_KP_1)) { x_input = -1; }
 
-                            if (key == KeyboardKey.KEY_S || key == KeyboardKey.KEY_KP_2 || key == KeyboardKey.KEY_KP_3 || key == KeyboardKey.KEY_KP_1) { y_input = 1; }
-                            else if (key == KeyboardKey.KEY_W || key == KeyboardKey.KEY_KP_8 || key == KeyboardKey.KEY_KP_9 || key == KeyboardKey.KEY_KP_7) { y_input = -1; }
-
-                            if (key == KeyboardKey.KEY_KP_5)
-                            {
-                                m_PlayerActed = true;
-                                m_CurrentAction = Action.None;
-                                return;
-                            }
-
-                            if (x_input != 0 || y_input != 0)
-                            {
-                                Coord actPosition = new Coord(x_input, y_input, 0);
-
-                                if (m_CurrentAction != Action.None)
-                                {
-                                    m_Player.Act(actPosition, m_CurrentAction, true);
-                                    m_CurrentAction = Action.None;
-                                }
-                                else m_Player.Act(actPosition, true);
-
-                                m_PlayerActed = true;
-                            }
-                        }
+                        if (Raylib.IsKeyDown(KeyboardKey.KEY_S) || Raylib.IsKeyDown(KeyboardKey.KEY_KP_2) || Raylib.IsKeyDown(KeyboardKey.KEY_KP_3) || Raylib.IsKeyDown(KeyboardKey.KEY_KP_1)) { y_input = 1; }
+                        else if (Raylib.IsKeyDown(KeyboardKey.KEY_W) || Raylib.IsKeyDown(KeyboardKey.KEY_KP_8) || Raylib.IsKeyDown(KeyboardKey.KEY_KP_9) || Raylib.IsKeyDown(KeyboardKey.KEY_KP_7)) { y_input = -1; }
                     }
 
-                    break;
+                    if (Raylib.IsKeyDown(KeyboardKey.KEY_KP_5))
+                    {
+                        m_PlayerActed = true;
+                        m_CurrentAction = Action.None;
+
+                        SetLastInput();
+                        return;
+                    }
+                    else if (x_input != 0 || y_input != 0)
+                    {
+                        Coord actPosition = new Coord(x_input, y_input, 0);
+
+                        if (m_CurrentAction != Action.None)
+                        {
+                            m_Player.Act(actPosition, m_CurrentAction, true);
+                            m_CurrentAction = Action.None;
+                        }
+                        else m_Player.Act(actPosition, true);
+
+                        if (Settings.CursorLook && m_Cursor != null && m_Cursor.Cell != null) m_Player.Act(m_Cursor.Cell.Position, Action.LookAt, false);
+
+                        SetLastInput();
+                        return;
+                    }
+                    else m_PlayerActed = false;
+                }
             }
         }
 
-		public virtual void Update(in TimeSpan deltaTime)
+		public virtual void Update()
         {
             if (m_Map == null) return;
 
@@ -358,14 +371,11 @@ namespace rat
                 }
                 else if (m_Player.Dead)
                 {
-                    var now = DateTime.Now;
-
-                    if ((ulong)(now - m_LastUpdateTime).Milliseconds > Settings.MinimumUpdateTime)
+                    if (AllowUpdate())
                     {
                         m_PlayerActed = true;
-                        m_LastUpdateTime = now;
 
-                        m_Map.RevealMap();
+                        m_Map.RevealMap(false);
                     }
                 }
             }
@@ -395,6 +405,17 @@ namespace rat
                         living_actor.Update();
 
                 m_PlayerActed = false;
+
+                SetLastUpdate();
+
+                if (AllowSummon())
+                {
+                    var summonCount = Globals.Generator.Next(Settings.Population.MinimumSummonEnemies, Settings.Population.MaximumSummonEnemies);
+
+                    summonCount = System.Math.Min(summonCount, Settings.Population.MaximumTotalEnemies - TotalActors);
+
+                    if (summonCount > 0) SummonEnemies(ref m_CurrentID, summonCount);
+                }
             }
 
             while (Globals.MessageLog.Count > Settings.MaxMessages)
@@ -404,7 +425,7 @@ namespace rat
                 m_Cursor.Update(Screens.MapDisplay.position, m_GameSet.GlyphSize);
         }
 
-        public virtual void Render(in TimeSpan deltaTime)
+        public virtual void Render()
         {
             Raylib.BeginDrawing();
             Raylib.ClearBackground(Colors.Black);
@@ -413,11 +434,11 @@ namespace rat
             {
                 m_Map.Draw(m_GameSet, 0, Screens.MapDisplay.position);
 
-                string text = 
+                string text =
                     $"{(m_Player != null ? m_Player.Name : "???")}:\n" +
                     $"{(m_Player != null ? m_Player.Position : "???")}:\n" +
                     $"Angle: {(m_Player != null ? m_Player.Angle : "???")}:\n" +
-                    $"Health: {(m_Player != null ? (int)Math.Ceiling(m_Player.CurrentHealth) : "(?.?)")}/{(m_Player != null ? (int)Math.Ceiling(m_Player.MaxHealth) : "(?.?)")}\n" +
+                    $"Health: {(m_Player != null ? (int)System.Math.Ceiling(m_Player.CurrentHealth) : "(?.?)")}/{(m_Player != null ? (int)System.Math.Ceiling(m_Player.MaxHealth) : "(?.?)")}\n" +
                     $"Stance: {(m_Player != null ? m_Player.Stance : "???")}\n" +
                     $"Camera {(m_Locked ? "Locked" : "Unlocked")}\n" +
                     $"Camera Position: {m_Map.Position}";
@@ -519,7 +540,7 @@ namespace rat
                 {
                     case '\n':
                         numLines++;
-                        maxWidth = Math.Max(maxWidth, currWidth);
+                        maxWidth = System.Math.Max(maxWidth, currWidth);
                         currWidth = 0;
                         break;
                     case '\t':
@@ -528,7 +549,7 @@ namespace rat
                     case '\v':
                         numLines += numLines % 4 > 0 ? numLines % 4 : 4;
                         numLines++;
-                        maxWidth = Math.Max(maxWidth, currWidth);
+                        maxWidth = System.Math.Max(maxWidth, currWidth);
                         currWidth = 0;
                         break;
                     default:
@@ -537,7 +558,7 @@ namespace rat
                 }
             }
 
-            maxWidth = Math.Max(maxWidth, currWidth);
+            maxWidth = System.Math.Max(maxWidth, currWidth);
 
             Point startPosition = position;
 
@@ -591,7 +612,7 @@ namespace rat
                 {
                     case '\n':
                         numLines++;
-                        maxWidth = Math.Max(maxWidth, currWidth);
+                        maxWidth = System.Math.Max(maxWidth, currWidth);
                         currWidth = 0u;
                         break;
                     case '\t':
@@ -600,7 +621,7 @@ namespace rat
                     case '\v':
                         numLines += numLines % 4u > 0u ? numLines % 4u : 4u;
                         numLines++;
-                        maxWidth = Math.Max(maxWidth, currWidth);
+                        maxWidth = System.Math.Max(maxWidth, currWidth);
                         currWidth = 0u;
                         break;
                     default:
@@ -609,7 +630,7 @@ namespace rat
                 }
             }
 
-            maxWidth = Math.Max(maxWidth, currWidth);
+            maxWidth = System.Math.Max(maxWidth, currWidth);
 
             Point startPosition = position;
 
@@ -677,7 +698,7 @@ namespace rat
                 {
                     case '\n':
                         numLines++;
-                        maxWidth = Math.Max(maxWidth, currWidth);
+                        maxWidth = System.Math.Max(maxWidth, currWidth);
                         currWidth = 0u;
                         break;
                     case '\t':
@@ -686,7 +707,7 @@ namespace rat
                     case '\v':
                         numLines += numLines % 4u > 0u ? numLines % 4u : 4u;
                         numLines++;
-                        maxWidth = Math.Max(maxWidth, currWidth);
+                        maxWidth = System.Math.Max(maxWidth, currWidth);
                         currWidth = 0u;
                         break;
                     default:
@@ -695,7 +716,7 @@ namespace rat
                 }
             }
 
-            maxWidth = Math.Max(maxWidth, currWidth);
+            maxWidth = System.Math.Max(maxWidth, currWidth);
 
             if (alignment.horizontal == HorizontalAlignment.Center) startPosition.x += (rect.size.width + (padding.width / 2) - maxWidth) / 2;
             else if (alignment.horizontal == HorizontalAlignment.Right) startPosition.x += rect.size.width + padding.width * 2;
@@ -855,7 +876,7 @@ namespace rat
         {
             for (int i = 0; i < amount; i++)
             {
-                long next = Globals.Generator.NextBool(0.00666) ? 7 : Globals.Generator.NextBool(0.75) ? Globals.Generator.NextInt(0, Settings.MaximumEnemyTypes / 2) : Globals.Generator.NextInt(Settings.MaximumEnemyTypes / 2, Settings.MaximumEnemyTypes - 1);
+                long next = Globals.Generator.NextBool(0.00666) ? 7 : Globals.Generator.NextBool(0.75) ? Globals.Generator.Next(0, Settings.Population.MaximumEnemyTypes / 2) : Globals.Generator.Next(Settings.Population.MaximumEnemyTypes / 2, Settings.Population.MaximumEnemyTypes - 1);
 
                 Actor? newlySpawned = null;
 
@@ -894,6 +915,8 @@ namespace rat
 
                 currentID++;
             }
+
+            SetLastSummon();
         }
     }
 }

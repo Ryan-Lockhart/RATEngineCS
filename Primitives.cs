@@ -5,18 +5,33 @@ using System.Linq;
 using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading.Tasks;
+using static rat.Map;
 
 namespace rat
 {
 
     namespace Primitives
     {
+        public enum Distance
+        {
+            Manhattan,
+            Chebyshev,
+            Octile,
+            Euclidean
+        };
+
         /// <summary>
         /// Two-dimensional structure representing a position in space
         /// </summary>
         public struct Point
         {
             public long x, y;
+
+            public Point(in Point point)
+            {
+                x = point.x;
+                y = point.y;
+            }
 
             public Point(long x, long y)
             {
@@ -64,14 +79,28 @@ namespace rat
         /// <summary>
         /// Three-dimensional structure representing a position in space
         /// </summary>
-        public struct Coord
+        public struct Coord : IComparable<Coord>
         {
             public long x, y, z;
+
+            public Coord(in Coord coord)
+            {
+                x = coord.x;
+                y = coord.y;
+                z = coord.z;
+            }
 
             public Coord(long x, long y, long z)
             {
                 this.x = x;
                 this.y = y;
+                this.z = z;
+            }
+
+            public Coord(in Point coord, long z)
+            {
+                x = coord.x;
+                y = coord.y;
                 this.z = z;
             }
 
@@ -117,9 +146,39 @@ namespace rat
             public override bool Equals(object? obj) => obj is Coord coord && x == coord.x && y == coord.y && z == coord.z;
             public override int GetHashCode() => HashCode.Combine(x, y, z);
 
+            public static Coord Absolute(in Coord coord) => new Coord(System.Math.Abs(coord.x), System.Math.Abs(coord.y), System.Math.Abs(coord.z));
+
+            public static Coord Direction(in Coord origin, in Coord target) => target - origin;
+
+            public static Coord AbsoluteDirection(in Coord origin, in Coord target) => Absolute(Direction(origin, target));
+
+            public static double Distance(in Coord origin, in Coord target, in Distance distance = Primitives.Distance.Chebyshev)
+            {
+                Coord delta = AbsoluteDirection(origin, target);
+
+                switch (distance)
+                {
+                    case Primitives.Distance.Manhattan:
+                        return delta.x + delta.y;
+                    case Primitives.Distance.Chebyshev:
+                        return MathF.Max(delta.x, delta.y);
+                    case Primitives.Distance.Octile:
+                        return 1.0f * (delta.x + delta.y) + (1.414f - 2.0f * 1.0f) * MathF.Min(delta.x, delta.y);
+                    case Primitives.Distance.Euclidean:
+                        return MathF.Sqrt(MathF.Pow(delta.x, 2f) + MathF.Pow(delta.y, 2f));
+                    default:
+                        return 0f;
+                }
+            }
+
             public static implicit operator Point(in Coord c) => new Point(c.x, c.y);
 
             public override string ToString() => new string($"({x}, {y}, {z})");
+
+            public int CompareTo(Coord other)
+            {
+                throw new NotImplementedException();
+            }
         }
 
         /// <summary>
@@ -128,6 +187,12 @@ namespace rat
         public struct Size
         {
             public uint width, height;
+
+            public Size(in Size size)
+            {
+                width = size.width;
+                height = size.height;
+            }
 
             public Size(uint width, uint height)
             {
@@ -173,6 +238,13 @@ namespace rat
         public struct Bounds
         {
             public uint width, height, depth;
+
+            public Bounds(in Bounds bounds)
+            {
+                width = bounds.width;
+                height = bounds.height;
+                depth = bounds.depth;
+            }
 
             public Bounds(uint width, uint height, uint depth)
             {
@@ -227,6 +299,12 @@ namespace rat
             public Point position;
             public Size size;
 
+            public Rect(in Rect rect)
+            {
+                position = rect.position;
+                size = rect.size;
+            }
+
             public Rect(in Point position, in Size size)
             {
                 this.position = position;
@@ -248,6 +326,12 @@ namespace rat
         {
             public Coord position;
             public Bounds size;
+
+            public Cuboid(in Cuboid cuboid)
+            {
+                position = cuboid.position;
+                size = cuboid.size;
+            }
 
             public Cuboid(in Coord position, in Bounds size)
             {
@@ -293,19 +377,27 @@ namespace rat
                 z = 0;
             }
 
+            public Quaternion(in Quaternion quat)
+            {
+                w = quat.w;
+                x = quat.x;
+                y = quat.y;
+                z = quat.z;
+            }
+
             public Quaternion(double x, double y, double z)
             {
                 //Precalculate sin/cos of x divided by two
-                double sin_of_x_div_2 = Math.Sin(x / 2);
-                double cos_of_x_div_2 = Math.Cos(x / 2);
+                double sin_of_x_div_2 = System.Math.Sin(x / 2);
+                double cos_of_x_div_2 = System.Math.Cos(x / 2);
 
                 //Precalculate sin/cos of y divided by two
-                double sin_of_y_div_2 = Math.Sin(y / 2);
-                double cos_of_y_div_2 = Math.Cos(y / 2);
+                double sin_of_y_div_2 = System.Math.Sin(y / 2);
+                double cos_of_y_div_2 = System.Math.Cos(y / 2);
 
                 //Precalculate sin/cos of z divided by two
-                double sin_of_z_div_2 = Math.Sin(z / 2);
-                double cos_of_z_div_2 = Math.Cos(z / 2);
+                double sin_of_z_div_2 = System.Math.Sin(z / 2);
+                double cos_of_z_div_2 = System.Math.Cos(z / 2);
 
                      w = cos_of_x_div_2 * cos_of_y_div_2 * cos_of_z_div_2 + sin_of_x_div_2 * sin_of_y_div_2 * sin_of_z_div_2;
                 this.x = sin_of_x_div_2 * cos_of_y_div_2 * cos_of_z_div_2 - cos_of_x_div_2 * sin_of_y_div_2 * sin_of_z_div_2;
@@ -340,6 +432,14 @@ namespace rat
                 alpha = 0x00;
             }
 
+            public Color(in Color color)
+            {
+                red = color.red;
+                green = color.green;
+                blue = color.blue;
+                alpha = color.alpha;
+            }
+
             public Color(byte red, byte green, byte blue, byte alpha = 0xFF)
             {
                 this.red = red;
@@ -350,10 +450,10 @@ namespace rat
 
             public Color(double red, double green, double blue, double alpha = 0.0)
             {
-                this.red = (byte)Math.Max(0, Math.Min(255, Math.Floor(red * 256.0)));
-                this.green = (byte)Math.Max(0, Math.Min(255, Math.Floor(green * 256.0)));
-                this.blue = (byte)Math.Max(0, Math.Min(255, Math.Floor(blue * 256.0)));
-                this.alpha = (byte)Math.Max(0, Math.Min(255, Math.Floor(alpha * 256.0)));
+                this.red = (byte)System.Math.Max(0, System.Math.Min(255, System.Math.Floor(red * 256.0)));
+                this.green = (byte)System.Math.Max(0, System.Math.Min(255, System.Math.Floor(green * 256.0)));
+                this.blue = (byte)System.Math.Max(0, System.Math.Min(255, System.Math.Floor(blue * 256.0)));
+                this.alpha = (byte)System.Math.Max(0, System.Math.Min(255, System.Math.Floor(alpha * 256.0)));
             }
 
             public static implicit operator Raylib_cs.Color(in Color color)
@@ -364,33 +464,33 @@ namespace rat
 
         public struct Glyph
         {
-            public byte index;
+            public int index;
             public Color color;
 
-            public Glyph(byte index, in Color color)
+            public Glyph(in Glyph glyph)
+            {
+                index = glyph.index;
+                color = glyph.color;
+            }
+
+            public Glyph(int index, in Color color)
             {
                 this.index = index;
                 this.color = color;
             }
         }
 
-        public struct Cell
-        {
-            public Coord position;
-
-            public Glyph foreground, background;
-
-            public Cell(in Coord position, in Glyph foreground, in Glyph background)
-            {
-                this.position = position;
-                this.foreground = foreground;
-                this.background = background;
-            }
-        }
-
         public struct Octant
         {
             public int x, dx, y, dy;
+
+            public Octant(in Octant octant)
+            {
+                x = octant.x;
+                dx = octant.dx;
+                y = octant.y;
+                dy = octant.dy;
+            }
 
             public Octant(int x, int dx, int y, int dy)
             {
@@ -403,16 +503,26 @@ namespace rat
 
         public struct Letter
         {
-            public byte index;
+            public int index;
             public bool vowel, consonant, capitalized;
 
-            public Letter(byte index, bool vowel, bool consonant, bool capitalized = false)
+            public Letter(in Letter letter)
+            {
+                index = letter.index;
+                vowel = letter.vowel;
+                consonant = letter.consonant;
+                capitalized = letter.capitalized;
+            }
+
+            public Letter(int index, bool vowel, bool consonant, bool capitalized = false)
             {
                 this.index = index;
                 this.vowel = vowel;
                 this.consonant = consonant;
                 this.capitalized = capitalized;
             }
+
+            public static readonly Letter Null = new Letter(-1, false, false);
 
             public static explicit operator ColoredLetter(in Letter letter)
             {
@@ -424,6 +534,12 @@ namespace rat
         {
             public Letter letter;
             public Color color;
+
+            public ColoredLetter(in ColoredLetter coloredLetter)
+            {
+                letter = coloredLetter.letter;
+                color = coloredLetter.color;
+            }
 
             public ColoredLetter(in Letter letter, in Color color)
             {
@@ -455,6 +571,18 @@ namespace rat
 	    {
             public VerticalAlignment vertical;
             public HorizontalAlignment horizontal;
+
+            public TextAlignment()
+            {
+                vertical = VerticalAlignment.Upper;
+                horizontal = HorizontalAlignment.Left;
+            }
+
+            public TextAlignment(in TextAlignment textAlignment)
+            {
+                vertical = textAlignment.vertical;
+                horizontal = textAlignment.horizontal;
+            }
 
             public TextAlignment(in VerticalAlignment vertical, in HorizontalAlignment horizontal)
             {

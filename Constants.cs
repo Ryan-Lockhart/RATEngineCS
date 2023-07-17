@@ -18,22 +18,49 @@ namespace rat
             public static readonly int MaxMessages = 21;
 
             /// <summary>
+            /// Minimum time (in milliseconds) between input updates
+            /// </summary>
+            public static readonly int MinimumInputTime = 250;
+
+            /// <summary>
             /// Minimum time (in milliseconds) between AI updates when control flow is unblocked
             /// </summary>
-            public static readonly ulong MinimumUpdateTime = 500;
+            public static readonly int MinimumUpdateTime = 500;
+
             /// <summary>
-            /// Minimum time (in milliseconds) between summon wave checks
+            /// Minimum time (in milliseconds) between wave summoning checks
             /// </summary>
-            public static readonly ulong MinimumSummonTime = 30000;
+            public static readonly int MinimumSummonTime = 30000;
 
-            public static readonly string WindowTitle = "Dungeon Sandbox (RATEngineCS) v0.001 07/09/2023";
+            public static readonly string WindowTitle = $"Technical Sandbox (RATEngine C#) {EngineVersion} {EngineDate}";
 
-            public static readonly Bounds MapSize = new Bounds(256, 256, 1);
+            public static readonly string EngineVersion = "v0.001";
+            public static readonly string EngineDate = "07/17/2023";
+
+            public static readonly Bounds MapSize = new Bounds(128, 128, 1);
+            public static readonly Bounds BorderSize = MapSize * 0.25;
+
+            public static class MapGeneration
+            {
+                public static WorldGenerationSettings TunnelHeavy = new WorldGenerationSettings(0.425f, 5, 4);
+                public static WorldGenerationSettings OpenCave = new WorldGenerationSettings(0.35f, 10, 4);
+            }            
 
             /// <summary>
             /// Allows the controlled actor to occupy solid cells
             /// </summary>
             public static readonly bool AllowNoclip = false;
+
+            /// <summary>
+            /// The number of cells that the controlled actor will traverse when noclip mode is enabled
+            /// </summary>
+            public static readonly int NoclipSpeed = 5;
+
+            /// <summary>
+            /// Automatically use the cursor as a look target ("look" action will not consume controlled actor's turn)
+            /// </summary>
+            public static readonly bool CursorLook = false;
+
             /// <summary>
             /// Allows the resurrection of deceased actors
             /// </summary>
@@ -44,16 +71,36 @@ namespace rat
             /// </summary>
             public static readonly int CameraSpeed = 5;
 
+            /// <summary>
+            /// Restricts the number of corpses that can be rendered
+            /// </summary>
             public static bool UseCorpseLimit = true;
-            public static int CorpseLimit = 1;
 
             /// <summary>
-            /// The number of enemies that are available for generation
+            /// The maximum number of corpses that can be rendered if <see cref="UseCorpseLimit"/> is enabled
             /// </summary>
-            public static readonly int MaximumEnemyTypes = 6;
+            public static int CorpseLimit = 1;
 
-            public static readonly int MinimumEnemies = 10;
-            public static readonly int MaximumEnemies = 50;
+            public class Population
+            {
+                /// <summary>
+                /// The number of enemies that are available for generation
+                /// </summary>
+                public static readonly int MaximumEnemyTypes = 6;
+
+                public static readonly int MinimumInitialEnemies = 10;
+                public static readonly int MaximumInitialEnemies = 50;
+
+                public static readonly float EnemyPopulationFactor = 5.0f;
+
+                public static readonly int MinimumTotalEnemies = (int)(MinimumInitialEnemies * EnemyPopulationFactor);
+                public static readonly int MaximumTotalEnemies = (int)(MaximumInitialEnemies * EnemyPopulationFactor);
+
+                public static readonly float WavePopulationFactor = 0.5f;
+
+                public static readonly int MinimumSummonEnemies = (int)(MinimumInitialEnemies * WavePopulationFactor);
+                public static readonly int MaximumSummonEnemies = (int)(MaximumInitialEnemies * WavePopulationFactor);
+            }
 
             /// <summary>
             /// The eight octants used for shadowcasting

@@ -86,7 +86,7 @@ namespace rat
             Raylib.UnloadTexture(m_Texture);
         }
 
-        public void DrawGlyph(byte index, in Color color, in Point position, bool useGrid = true)
+        public void DrawGlyph(int index, in Color color, in Point position, bool useGrid = true)
         {
             Raylib.DrawTextureRec(m_Texture, GetRect(index), useGrid ? position * m_GlyphSize : position, color);
         }
@@ -101,6 +101,6 @@ namespace rat
             Raylib.DrawTexturePro(m_Texture, GetRect(glyph.index), rect, Point.Zero, 0.0f, glyph.color);
         }
 
-        private Rect GetRect(uint index) => m_Rects[index];
+        private Rect GetRect(int index) => m_Rects[index];
     }
 }

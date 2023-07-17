@@ -5,19 +5,35 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-using rat.Primitives;
-using rat.Constants;
-using rat.Random;
 using System.Reflection.Metadata;
 using System.Collections.Specialized;
 
+using rat.Primitives;
+using rat.Constants;
+using System.Numerics;
+using Raylib_cs;
+
 namespace rat
 {
+    public struct WorldGenerationSettings
+    {
+        public float fillPercent;
+        public int iterations;
+        public int threshold;
+
+        public WorldGenerationSettings(float fillPercent, int iterations, int threshold)
+        {
+            this.fillPercent = fillPercent;
+            this.iterations = iterations;
+            this.threshold = threshold;
+        }
+    }
+
     public class Map
     {
 		private bool m_Generating;
 
-		private bool[] m_Solids;
+		private BitArray m_Solids;
 		private Cell[] m_Cells;
 
 		private Point m_Position;
@@ -25,7 +41,10 @@ namespace rat
 		private Bounds m_Bounds;
 		private Bounds m_Border;
 
+        private bool m_Revealed;
+
         public Point Position { get => m_Position; private set => m_Position = value; }
+        public bool Revealed => m_Revealed;
 
         public Cell? this[in Coord coord]
         {
@@ -40,12 +59,26 @@ namespace rat
             }
         }
 
+        private Cell this[int index]
+        {
+            get
+            {
+                try { return m_Cells[index]; }
+                catch { throw; }
+            }
+        }
+
         private int Index(in Coord coord)
 		{
-			return (int)(coord.z * m_Bounds.Area + coord.y * m_Bounds.width + coord.x);
-		}
+			return (int)(coord.z * m_Bounds.Area + coord.y * m_Bounds.height + coord.x);
+        }
 
-		private void ConstrainToScreen()
+        private int Index(int x, int y, int z)
+        {
+            return (int)(z * m_Bounds.Area + y * m_Bounds.height + x);
+        }
+
+        private void ConstrainToScreen()
 		{
             if (m_Position.x < 0)
                 m_Position.x = 0;
@@ -76,15 +109,15 @@ namespace rat
                     Coord currentPosition = new Coord((long)(origin.x + deltaX * octant.x + deltaY * octant.dx), (long)(origin.y + deltaX * octant.y + deltaY * octant.dy), origin.z);
                     Coord delta = currentPosition - origin;
 
-                    double leftSlope = (deltaX - 0.5f) / (deltaY + 0.5f);
-                    double rightSlope = (deltaX + 0.5f) / (deltaY - 0.5f);
+                    double leftSlope = (deltaX - 0.5) / (deltaY + 0.5);
+                    double rightSlope = (deltaX + 0.5) / (deltaY - 0.5);
 
                     if (!IsValid(currentPosition) || start < rightSlope)
                         continue;
                     if (end > leftSlope)
                         break;
 
-                    double deltaRadius = Maths.Normalize(deltaX, deltaY);
+                    double deltaRadius = Math.Normalize(deltaX, deltaY);
 
                     Cell? cell = this[currentPosition];
 
@@ -134,16 +167,16 @@ namespace rat
                     Coord currentPosition = new Coord((long)(origin.x + deltaX * octant.x + deltaY * octant.dx), (long)(origin.y + deltaX * octant.y + deltaY * octant.dy), origin.z);
                     Coord delta = currentPosition - origin;
 
-                    double leftSlope = (deltaX - 0.5f) / (deltaY + 0.5f);
-                    double rightSlope = (deltaX + 0.5f) / (deltaY - 0.5f);
+                    double leftSlope = (deltaX - 0.5) / (deltaY + 0.5);
+                    double rightSlope = (deltaX + 0.5) / (deltaY - 0.5);
 
                     if (!IsValid(currentPosition) || start < rightSlope)
                         continue;
                     if (end > leftSlope)
                         break;
 
-                    double deltaRadius = Maths.Normalize(deltaX, deltaY);
-                    double at2 = Math.Abs(angle - Maths.Atan2(delta.y, delta.x));
+                    double deltaRadius = Math.Normalize(deltaX, deltaY);
+                    double at2 = System.Math.Abs(angle - Math.Atan2(delta.y, delta.x));
 
                     Cell? cell = this[currentPosition];
 
@@ -175,16 +208,46 @@ namespace rat
             }
         }
 
-		public Map(in Bounds bounds, in Bounds border)
+		public Map(in Bounds size, in Bounds border)
 		{
             m_Position = Point.Zero;
 
-            m_Bounds = bounds;
+            m_Bounds = size;
             m_Border = border;
 
-            m_Solids = new bool[m_Bounds.Volume];
+            m_Solids = new BitArray((int)m_Bounds.Volume, false);
             m_Cells = new Cell[m_Bounds.Volume];
-		}
+        }
+
+        public Map(in Bounds size, in Bounds border, float fillPercent, int iterations, int threshold)
+        {
+            m_Position = Point.Zero;
+
+            m_Bounds = size;
+            m_Border = border;
+
+            m_Solids = new BitArray((int)m_Bounds.Volume, false);
+            m_Cells = new Cell[m_Bounds.Volume];
+
+            Generate(fillPercent);
+            Smooth(iterations, threshold);
+            Populate();
+        }
+
+        public Map(in Bounds size, in Bounds border, in WorldGenerationSettings settings)
+        {
+            m_Position = Point.Zero;
+
+            m_Bounds = size;
+            m_Border = border;
+
+            m_Solids = new BitArray((int)m_Bounds.Volume, false);
+            m_Cells = new Cell[m_Bounds.Volume];
+
+            Generate(settings.fillPercent);
+            Smooth(settings.iterations, settings.threshold);
+            Populate();
+        }
 
         public void Move(in Point position, bool offset = true)
 		{
@@ -210,7 +273,7 @@ namespace rat
 
         public void Smooth(int iterations = 5, int threshold = 4)
 		{
-            bool[] smoothed = m_Solids;
+            BitArray smoothed = new BitArray(m_Solids);
 
             for (ulong i = 0; i < (ulong)iterations; i++)
             {
@@ -220,14 +283,14 @@ namespace rat
                         {
                             Coord coord = new Coord(x, y, z);
 
-                            smoothed[Index(coord)] = WithinBounds(coord) ? Automatize(coord, threshold) : true;
+                            smoothed[Index(coord)] = WithinBounds(coord) ? Automatize(coord, threshold, m_Solids) : true;
                         }
 
                 (smoothed, m_Solids) = (m_Solids, smoothed);
             }
         }
 
-		public bool Automatize(in Coord position, int threshold)
+		public bool Automatize(in Coord position, int threshold, in BitArray solids)
 		{
             bool originalState = m_Solids[Index(position)];
 
@@ -239,7 +302,7 @@ namespace rat
                 for (long offset_y = -1; offset_y < 2; offset_y++)
                     for (long offset_x = -1; offset_x < 2; offset_x++)
                         if (offset_x != 0 || offset_y != 0 || (offset_z != 0 || isFlat))
-                            neighbours += IsSolid(position + new Coord(offset_x, offset_y, isFlat ? 0 : offset_z), m_Solids) ? 1 : 0;
+                            neighbours += IsSolid(position + new Coord(offset_x, offset_y, isFlat ? 0 : offset_z), solids) ? 1 : 0;
 
             return neighbours > threshold ? true : neighbours < threshold ? false : originalState;
         }
@@ -298,9 +361,9 @@ namespace rat
 
             while (checks < maxChecks)
             {
-                long x = Globals.Generator.NextInt(0, (int)m_Bounds.width - 1);
-                long y = Globals.Generator.NextInt(0, (int)m_Bounds.height - 1);
-                long z = Globals.Generator.NextInt(0, (int)m_Bounds.depth - 1);
+                long x = Globals.Generator.Next(0, (int)m_Bounds.width - 1);
+                long y = Globals.Generator.Next(0, (int)m_Bounds.height - 1);
+                long z = Globals.Generator.Next(0, (int)m_Bounds.depth - 1);
 
                 Coord randomPosition = new Coord(x, y, z);
 
@@ -318,10 +381,16 @@ namespace rat
             throw new Exception("No open cells!");
         }
 
-		public bool IsSolid(in Coord position, in bool[] solids)
+        public bool IsSolid(in Coord position)
+        {
+            return IsValid(position) ?
+                m_Solids[Index(position)] : true;
+        }
+
+        public bool IsSolid(in Coord position, in BitArray solids)
 		{
 			return IsValid(position) ?
-				m_Solids[Index(position)] : true;
+				solids[Index(position)] : true;
 		}
 
         /// <summary>
@@ -329,17 +398,10 @@ namespace rat
         /// </summary>
 		public void ResetSeen()
         {
-            for (long z = 0; z < m_Bounds.depth; z++)
-                for (long y = 0; y < m_Bounds.height; y++)
-                    for (long x = 0; x < m_Bounds.width; x++)
-                    {
-                        Coord position = new Coord(x, y, z);
-
-                        Cell? cell = this[position];
-                        if (cell == null) continue;
-
-                        cell.Seen = false;
-                    }
+            for (int z = 0; z < m_Bounds.depth; z++)
+                for (int y = 0; y < m_Bounds.height; y++)
+                    for (int x = 0; x < m_Bounds.width; x++)
+                        this[Index(x, y, z)].Seen = false;
         }
 
         /// <summary>
@@ -347,14 +409,13 @@ namespace rat
         /// </summary>
         public void RevealMap(bool onlyFog = true)
         {
-            for (long z = 0; z < m_Bounds.depth; z++)
-                for (long y = 0; y < m_Bounds.height; y++)
-                    for (long x = 0; x < m_Bounds.width; x++)
-                    {
-                        Coord position = new Coord(x, y, z);
+            if (m_Revealed) return;
 
-                        Cell? cell = this[position];
-                        if (cell == null) continue;
+            for (int z = 0; z < m_Bounds.depth; z++)
+                for (int y = 0; y < m_Bounds.height; y++)
+                    for (int x = 0; x < m_Bounds.width; x++)
+                    {
+                        Cell cell = this[Index(x, y, z)];
 
                         cell.Explored = true;
 
@@ -396,13 +457,22 @@ namespace rat
             for (long y = m_Position.y; y < m_Position.y + Screens.MapDisplay.size.height; y++)
                 for (long x = m_Position.x; x < m_Position.x + Screens.MapDisplay.size.width; x++)
                 {
-                    Coord cellCoord = new Coord(x, y, drawDepth);
+                    if (m_Generating)
+                    {
+                        Coord drawCoord = new Coord(x, y, drawDepth);
 
-                    Cell? cell = this[cellCoord];
+                        glyphSet.DrawGlyph(m_Solids[Index(drawCoord)] ? Glyphs.ASCII.Wall : Glyphs.ASCII.Floor, m_Position - drawCoord + offset);
+                    }
+                    else
+                    {
+                        Coord cellCoord = new Coord(x, y, drawDepth);
 
-                    if (cell != null)
-                        cell.Draw(glyphSet, m_Position - offset, true);
-                    else glyphSet.DrawGlyph(m_Solids[Index(cellCoord)] ? Glyphs.ASCII.Wall : Glyphs.ASCII.Floor, m_Position + cellCoord + offset);
+                        Cell? cell = this[cellCoord];
+
+                        if (cell != null)
+                            cell.Draw(glyphSet, m_Position - offset, true);
+                        else glyphSet.DrawGlyph(m_Solids[Index(cellCoord)] ? Glyphs.ASCII.Wall : Glyphs.ASCII.Floor, m_Position - cellCoord + offset);
+                    }
                 }
         }
 
@@ -430,7 +500,7 @@ namespace rat
         {
             List<Coord> fov = new List<Coord>();
 
-            viewDistance = Math.Max(1, viewDistance);
+            viewDistance = System.Math.Max(1, viewDistance);
 
             Cell? cell = this[origin];
             if (cell != null)
@@ -454,10 +524,10 @@ namespace rat
         {
             List<Coord> fov = new List<Coord>();
 
-            viewDistance = Math.Max(1, viewDistance);
+            viewDistance = System.Math.Max(1, viewDistance);
 
-            angle = (angle > 360.0 || angle < 0.0 ? Maths.WrapAround(angle, 360.0) : angle) * Maths.PercentOfCircle;
-            span *= Maths.PercentOfCircle;
+            angle = (angle > 360.0 || angle < 0.0 ? Math.WrapAround(angle, 360.0) : angle) * Math.PercentOfCircle;
+            span *= Math.PercentOfCircle;
 
             Cell? cell = this[origin];
 
@@ -482,16 +552,16 @@ namespace rat
         {
             List<Coord> fov = new List<Coord>();
 
-            double radians = Maths.ToRadians(angle);
+            double radians = Math.ToRadians(angle);
 
             Coord shiftedOrigin = nudge != 0 ?
-			    new Coord( origin.x + (long)(Math.Cos(radians) * nudge), origin.y + (long)(Math.Sin(radians) * nudge), origin.z) :
+			    new Coord( origin.x + (long)(System.Math.Cos(radians) * nudge), origin.y + (long)(System.Math.Sin(radians) * nudge), origin.z) :
                 origin;
 
-		    viewDistance = Math.Max(1, viewDistance);
+		    viewDistance = System.Math.Max(1, viewDistance);
 
-		    angle = (angle > 360.0 || angle < 0.0 ? Maths.WrapAround(angle, 360.0) : angle) * Maths.PercentOfCircle;
-		    span *= Maths.PercentOfCircle;
+		    angle = (angle > 360.0 || angle < 0.0 ? Math.WrapAround(angle, 360.0) : angle) * Math.PercentOfCircle;
+		    span *= Math.PercentOfCircle;
 
 		    Cell? cell = this[shiftedOrigin];
 
@@ -512,77 +582,22 @@ namespace rat
             return fov;
         }
 
-        public struct NodeData
-        {
-	        public Coord position;
-            public int distance;
-            public int heuristic;
-
-            public NodeData(in Coord pos, int dist, int h)
-            {
-                position = pos;
-                distance = dist;
-                heuristic = h;
-            }
-
-            /// <summary>
-            /// Total cost by combining the distance and heuristic values
-            /// </summary>
-            public int Cost => distance + heuristic;
-        };
-
-        struct NodeDataComparator : IComparer<NodeData>
-        {
-            public int Compare(NodeData x, NodeData y)
-            {
-                if (x.Cost == y.Cost)
-                    return 0;
-                else if (x.Cost < y.Cost)
-                    return -1;
-                else return 1;
-            }
-        }
-        public enum Distance
-        {
-	        Manhattan,
-	        Chebyshev,
-	        Octile,
-	        Euclidean
-        };
-
-        public int CalculateHeuristic(in Coord current, in Coord destination, in Distance distance = Distance.Euclidean)
-        {
-	        int dx = Math.Abs((int)current.x - (int)destination.x);
-	        int dy = Math.Abs((int)current.y - (int)destination.y);
-
-	        switch (distance)
-	        {
-		        case Distance.Manhattan:
-			        return dx + dy;
-		        case Distance.Chebyshev:
-			        return Math.Max(dx, dy);
-		        case Distance.Octile:
-			        return (int)(1.0 * (dx + dy) + (1.414 - 2.0 * 1.0) * Math.Min(dx, dy));
-		        case Distance.Euclidean:
-			        return (int)Math.Sqrt(Math.Pow(dx, 2) + Math.Pow(dy, 2));
-                default:
-                    return 0;
-	        }
-        }
-
         public Stack<Coord> CalculatePath(in Coord origin, in Coord destination)
         {
-            PriorityQueue<NodeData, NodeDataComparator> frontier = new PriorityQueue<NodeData, NodeDataComparator>();
+            PriorityQueue<Coord, double> frontier = new PriorityQueue<Coord, double>();
 
-            frontier.Enqueue(new NodeData(origin, 0, CalculateHeuristic(origin, destination)), new NodeDataComparator());
+            double initial_distance = Coord.Distance(origin, destination);
 
-            Dictionary<Coord, (Coord, int)> came_from = new Dictionary<Coord, (Coord, int)>();
+            frontier.Enqueue(origin, initial_distance);
 
-            came_from[origin] = (origin, 0);
+            Dictionary<Coord, Coord> came_from = new Dictionary<Coord, Coord>();
+            Dictionary<Coord, double> cost_so_far = new Dictionary<Coord, double>();
+            came_from[origin] = origin;
+            cost_so_far[origin] = initial_distance;
 
             while (frontier.Count > 0)
             {
-                Coord currentPosition = frontier.Dequeue().position;
+                Coord currentPosition = frontier.Dequeue();
 
                 if (currentPosition == destination)
                     break;
@@ -590,18 +605,17 @@ namespace rat
                 var neighbourhood = GetNeighbourhood(currentPosition);
 
                 foreach (var neighbor in neighbourhood)
-			    {
+                {
                     if (neighbor != null)
                     {
                         Coord neighborPos = neighbor.Position;
+                        double new_cost = Coord.Distance(neighborPos, destination);
 
-                        bool solid = neighbor.Solid;
-                        int newDistance = came_from[currentPosition].Item2 + 1; // Assuming constant distance for adjacent cells
-
-                        if ((came_from[neighborPos] == came_from.Last().Value || newDistance < came_from[neighborPos].Item2) && !solid)
+                        if (!came_from.ContainsKey(neighborPos) && new_cost < cost_so_far[currentPosition])
                         {
-                            frontier.Enqueue(new NodeData(neighborPos, newDistance, CalculateHeuristic(neighborPos, destination)), new NodeDataComparator());
-                            came_from[neighborPos] = (currentPosition, newDistance);
+                            frontier.Enqueue(neighborPos, new_cost);
+                            came_from.Add(neighborPos, currentPosition);
+                            cost_so_far.Add(neighborPos, new_cost);
                         }
                     }
                 }
@@ -611,14 +625,10 @@ namespace rat
 
             Coord current = destination;
 
-            if (came_from[destination] == came_from.Last().Value)
-            {
-                return path;
-            }
             while (current != origin)
             {
                 path.Push(current);
-                current = came_from[current].Item1;
+                current = came_from[current];
             }
 
             return path;
