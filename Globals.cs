@@ -14,5 +14,8 @@ namespace rat
 
         public static Random Generator = new Random();
         public static Queue<string> MessageLog = new Queue<string>();
+
+        public static Actor? Player;
+        public static bool PlayerExists => Player != null;
     }
 }

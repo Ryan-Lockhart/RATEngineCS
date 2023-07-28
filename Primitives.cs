@@ -1,4 +1,5 @@
-﻿using System;
+﻿using GoRogue;
+using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
@@ -20,12 +21,25 @@ namespace rat
             Euclidean
         };
 
+        public enum Cardinal
+        {
+            Northwest,
+            North,
+            Northeast,
+            West,
+            Central,
+            East,
+            Southwest,
+            South,
+            Southeast
+        }
+
         /// <summary>
         /// Two-dimensional structure representing a position in space
         /// </summary>
         public struct Point
         {
-            public long x, y;
+            public int x, y;
 
             public Point(in Point point)
             {
@@ -33,22 +47,41 @@ namespace rat
                 y = point.y;
             }
 
-            public Point(long x, long y)
+            public Point(int x, int y)
             {
                 this.x = x;
                 this.y = y;
             }
 
+            public static readonly Dictionary<Cardinal, Point> Directions = new Dictionary<Cardinal, Point>()
+            {
+                { Cardinal.Northwest, Northwest },
+                { Cardinal.North, North },
+                { Cardinal.Northeast, Northeast },
+                { Cardinal.West, West },
+                { Cardinal.Central, Zero },
+                { Cardinal.East, East },
+                { Cardinal.Southwest, Southwest },
+                { Cardinal.South, South },
+                { Cardinal.Southeast, Southeast },
+            };
+
             public static readonly Point Zero = new Point(0, 0);
 
-            public static readonly Point West = new Point(-1, 0);
-            public static readonly Point East = new Point(1, 0);
+            private static readonly Point North = new Point(0, -1);
+            private static readonly Point South = new Point(0, 1);
 
-            public static readonly Point North = new Point(0, -1);
-            public static readonly Point South = new Point(0, 1);
+            private static readonly Point West = new Point(-1, 0);
+            private static readonly Point East = new Point(1, 0);
+
+            private static readonly Point Northwest = North + West;
+            private static readonly Point Northeast = North + East;
+
+            private static readonly Point Southwest = South + West;
+            private static readonly Point Southeast = South + East;
 
             public static implicit operator System.Numerics.Vector2(in Point point) => new System.Numerics.Vector2(point.x, point.y);
-            public static implicit operator Point(in System.Numerics.Vector2 vector) => new Point((long)vector.X, (long)vector.Y);
+            public static implicit operator Point(in System.Numerics.Vector2 vector) => new Point((int)vector.X, (int)vector.Y);
 
             public static Point operator +(in Point lhs, in Point rhs) => new Point(lhs.x + rhs.x, lhs.y + rhs.y);
             public static Point operator +(in Point lhs, in Size rhs) => new Point(lhs.x + rhs.width, lhs.y + rhs.height);
@@ -58,20 +91,40 @@ namespace rat
 
             public static Point operator *(in Point lhs, in Point rhs) => new Point(lhs.x * rhs.x, lhs.y * rhs.y);
             public static Point operator *(in Point lhs, in Size rhs) => new Point(lhs.x * rhs.width, lhs.y * rhs.height);
-            public static Point operator *(in Point lhs, double scalar) => new Point((long)(lhs.x * scalar), (long)(lhs.y * scalar));
+            public static Point operator *(in Point lhs, double scalar) => new Point((int)(lhs.x * scalar), (int)(lhs.y * scalar));
 
             public static Point operator /(in Point lhs, in Point rhs) => new Point(lhs.x / rhs.x, lhs.y / rhs.y);
             public static Point operator /(in Point lhs, in Size rhs) => new Point(lhs.x / rhs.width, lhs.y / rhs.height);
-            public static Point operator /(in Point lhs, double scalar) => new Point((long)(lhs.x / scalar), (long)(lhs.y / scalar));
+            public static Point operator /(in Point lhs, double scalar) => new Point((int)(lhs.x / scalar), (int)(lhs.y / scalar));
 
             public static bool operator ==(in Point lhs, in Point rhs) => lhs.x == rhs.x && lhs.y == rhs.y;
-            public static bool operator !=(in Point lhs, in Point rhs) => lhs.x != rhs.x && lhs.y != rhs.y;
+            public static bool operator !=(in Point lhs, in Point rhs) => lhs.x != rhs.x || lhs.y != rhs.y;
 
             public override bool Equals(object? obj) => obj is Point point && x == point.x && y == point.y;
             public override int GetHashCode() => HashCode.Combine(x, y);
 
+            public static Point Absolute(in Point coord) => new Point(System.Math.Abs(coord.x), System.Math.Abs(coord.y));
+
+            public static Point Direction(in Point origin, in Point target) => target - origin;
+
+            public static Point AbsoluteDirection(in Point origin, in Point target) => Absolute(Direction(origin, target));
+
+            public static double Distance(in Point origin, in Point target, in Distance distance = Primitives.Distance.Chebyshev)
+            {
+                Point delta = AbsoluteDirection(origin, target);
+
+                return distance switch
+                {
+                    Primitives.Distance.Manhattan => delta.x + delta.y,
+                    Primitives.Distance.Chebyshev => System.Math.Max(delta.x, delta.y),
+                    Primitives.Distance.Octile => 1.0f * (delta.x + delta.y) + (1.414f - 2.0f * 1.0f) * System.Math.Min(delta.x, delta.y),
+                    Primitives.Distance.Euclidean => System.Math.Sqrt(System.Math.Pow(delta.x, 2f) + System.Math.Pow(delta.y, 2f)),
+                    _ => 0.0,
+                };
+            }
+
             public static explicit operator Coord(in Point p) => new Coord(p.x, p.y, 0);
-            public static Coord ToCoord(in Point p, long z) => new Coord(p.x, p.y, z);
+            public static Coord ToCoord(in Point p, int z) => new Coord(p.x, p.y, z);
 
             public override string ToString() => new string($"({x}, {y})");
         }
@@ -79,10 +132,17 @@ namespace rat
         /// <summary>
         /// Three-dimensional structure representing a position in space
         /// </summary>
+        /// <remarks>
+        /// This structure has been deprecated, as 3D <see cref="rat.Map"/>s are no longer in use
+        /// </remarks>
         public struct Coord : IComparable<Coord>
         {
-            public long x, y, z;
+            public int x, y, z;
 
+            /// <summary>
+            /// Construct a <see cref="Coord"/> with an existing <see cref="Coord"/>
+            /// </summary>
+            /// <param name="coord">The <see cref="Coord"/> to clone</param>
             public Coord(in Coord coord)
             {
                 x = coord.x;
@@ -90,23 +150,52 @@ namespace rat
                 z = coord.z;
             }
 
-            public Coord(long x, long y, long z)
+            /// <summary>
+            /// Construct a <see cref="Coord"/> with an <see cref="int"/> for the X, Y, and Z axes
+            /// </summary>
+            /// <param name="x">The width on the X axis</param>
+            /// <param name="y">The height on the Y axis</param>
+            /// <param name="z">The depth on the Z axis</param>
+            public Coord(int x, int y, int z)
             {
                 this.x = x;
                 this.y = y;
                 this.z = z;
             }
 
-            public Coord(in Point coord, long z)
+            /// <summary>
+            /// Construct a <see cref="Coord"/> with a <see cref="Point"/> position and depth on the Z axis
+            /// </summary>
+            /// <param name="position"></param>
+            /// <param name="z">The position on the Z axis (depth)</param>
+            public Coord(in Point position, int z)
             {
-                x = coord.x;
-                y = coord.y;
+                x = position.x;
+                y = position.y;
                 this.z = z;
             }
 
+            /// <summary>
+            /// A <see cref="Coord"/> representing no direction
+            /// </summary>
+            /// <returns>
+            /// (X, Y, Z) -> (0, 0, 0)
+            /// </returns>
             public static readonly Coord Zero = new Coord(0, 0, 0);
 
+            /// <summary>
+            /// Unit <see cref="Coord"/> representing the Up direction
+            /// </summary>
+            /// <returns>
+            /// (X, Y, Z) -> (0, 0, 1)
+            /// </returns>
             public static readonly Coord Up = new Coord(0, 0, 1);
+            /// <summary>
+            /// Unit <see cref="Coord"/> representing the Down direction
+            /// </summary>
+            /// <returns>
+            /// (X, Y, Z) -> (0, 0, -1)
+            /// </returns>
             public static readonly Coord Down = new Coord(0, 0, -1);
 
             public static readonly Coord West = new Coord(-1, 0, 0);
@@ -115,9 +204,21 @@ namespace rat
             public static readonly Coord North = new Coord(0, -1, 0);
             public static readonly Coord South = new Coord(0, 1, 0);
 
-            public static implicit operator System.Numerics.Vector3(in Coord coord) => new System.Numerics.Vector3(coord.x, coord.y, coord.z);
-            public static implicit operator Coord(in System.Numerics.Vector3 vector) => new Coord((long)vector.X, (long)vector.Y, (long)vector.Z);
+            public static readonly Coord Northwest = North + West;
+            public static readonly Coord Northeast = North + East;
 
+            public static readonly Coord Southwest = South + West;
+            public static readonly Coord Southeast = South + East;
+
+            public static implicit operator System.Numerics.Vector3(in Coord coord) => new System.Numerics.Vector3(coord.x, coord.y, coord.z);
+            public static implicit operator Coord(in System.Numerics.Vector3 vector) => new Coord((int)vector.X, (int)vector.Y, (int)vector.Z);
+
+            /// <summary>
+            /// Add two <see cref="Coord"/>s together
+            /// </summary>
+            /// <param name="lhs">The <see cref="Coord"/> on the left hand side of the operation</param>
+            /// <param name="rhs">The <see cref="Coord"/> on the right hand side of the operation</param>
+            /// <returns>A <see cref="Coord"/> of </returns>
             public static Coord operator +(in Coord lhs, in Coord rhs) => new Coord(lhs.x + rhs.x, lhs.y + rhs.y, lhs.z + rhs.z);
             public static Coord operator +(in Coord lhs, in Point rhs) => new Coord(lhs.x + rhs.x, lhs.y + rhs.y, lhs.z);
             public static Coord operator +(in Coord lhs, in Size rhs) => new Coord(lhs.x + rhs.width, lhs.y + rhs.height, lhs.z);
@@ -132,16 +233,16 @@ namespace rat
             public static Coord operator *(in Coord lhs, in Point rhs) => new Coord(lhs.x * rhs.x, lhs.y * rhs.y, lhs.z);
             public static Coord operator *(in Coord lhs, in Size rhs) => new Coord(lhs.x * rhs.width, lhs.y * rhs.height, lhs.z);
             public static Coord operator *(in Coord lhs, in Bounds rhs) => new Coord(lhs.x * rhs.width, lhs.y * rhs.height, lhs.z * rhs.depth);
-            public static Coord operator *(in Coord lhs, double scalar) => new Coord((long)(lhs.x * scalar), (long)(lhs.y * scalar), (long)(lhs.z * scalar));
+            public static Coord operator *(in Coord lhs, double scalar) => new Coord((int)(lhs.x * scalar), (int)(lhs.y * scalar), (int)(lhs.z * scalar));
 
             public static Coord operator /(in Coord lhs, in Coord rhs) => new Coord(lhs.x / rhs.x, lhs.y / rhs.y, lhs.z / rhs.z);
             public static Coord operator /(in Coord lhs, in Point rhs) => new Coord(lhs.x / rhs.x, lhs.y / rhs.y, lhs.z);
             public static Coord operator /(in Coord lhs, in Size rhs) => new Coord(lhs.x / rhs.width, lhs.y / rhs.height, lhs.z);
             public static Coord operator /(in Coord lhs, in Bounds rhs) => new Coord(lhs.x / rhs.width, lhs.y / rhs.height, lhs.z / rhs.depth);
-            public static Coord operator /(in Coord lhs, double scalar) => new Coord((long)(lhs.x / scalar), (long)(lhs.y / scalar), (long)(lhs.z / scalar));
+            public static Coord operator /(in Coord lhs, double scalar) => new Coord((int)(lhs.x / scalar), (int)(lhs.y / scalar), (int)(lhs.z / scalar));
 
             public static bool operator ==(in Coord lhs, in Coord rhs) => lhs.x == rhs.x && lhs.y == rhs.y && lhs.z == rhs.z;
-            public static bool operator !=(in Coord lhs, in Coord rhs) => lhs.x != rhs.x && lhs.y != rhs.y && lhs.z != rhs.z;
+            public static bool operator !=(in Coord lhs, in Coord rhs) => lhs.x != rhs.x || lhs.y != rhs.y || lhs.z != rhs.z;
 
             public override bool Equals(object? obj) => obj is Coord coord && x == coord.x && y == coord.y && z == coord.z;
             public override int GetHashCode() => HashCode.Combine(x, y, z);
@@ -163,9 +264,9 @@ namespace rat
                     case Primitives.Distance.Chebyshev:
                         return MathF.Max(delta.x, delta.y);
                     case Primitives.Distance.Octile:
-                        return 1.0f * (delta.x + delta.y) + (1.414f - 2.0f * 1.0f) * MathF.Min(delta.x, delta.y);
+                        return 1.0f * (delta.x + delta.y) + (1.414f - 2.0f * 1.0f) * System.Math.Min(delta.x, delta.y);
                     case Primitives.Distance.Euclidean:
-                        return MathF.Sqrt(MathF.Pow(delta.x, 2f) + MathF.Pow(delta.y, 2f));
+                        return System.Math.Sqrt(System.Math.Pow(delta.x, 2f) + System.Math.Pow(delta.y, 2f));
                     default:
                         return 0f;
                 }
@@ -186,7 +287,7 @@ namespace rat
         /// </summary>
         public struct Size
         {
-            public uint width, height;
+            public int width, height;
 
             public Size(in Size size)
             {
@@ -194,7 +295,7 @@ namespace rat
                 height = size.height;
             }
 
-            public Size(uint width, uint height)
+            public Size(int width, int height)
             {
                 this.width = width;
                 this.height = height;
@@ -209,20 +310,20 @@ namespace rat
             public static readonly Size Sixteen = new Size(16, 16);
             public static readonly Size Thritytwo = new Size(32, 32);
 
-            public uint Area => width * height;
+            public int Area => width * height;
 
             public static Size operator +(in Size lhs, in Size rhs) => new Size(lhs.width + rhs.width, lhs.height + rhs.height);
 
             public static Size operator -(in Size lhs, in Size rhs) => new Size(lhs.width - rhs.width, lhs.height - rhs.height);
 
             public static Size operator *(in Size lhs, in Size rhs) => new Size(lhs.width * rhs.width, lhs.height * rhs.height);
-            public static Size operator *(in Size lhs, double scalar) => new Size((uint)(lhs.width * scalar), (uint)(lhs.height * scalar));
+            public static Size operator *(in Size lhs, double scalar) => new Size((int)(lhs.width * scalar), (int)(lhs.height * scalar));
 
             public static Size operator /(in Size lhs, in Size rhs) => new Size(lhs.width / rhs.width, lhs.height / rhs.height);
-            public static Size operator /(in Size lhs, double scalar) => new Size((uint)(lhs.width / scalar), (uint)(lhs.height / scalar));
+            public static Size operator /(in Size lhs, double scalar) => new Size((int)(lhs.width / scalar), (int)(lhs.height / scalar));
 
             public static bool operator ==(in Size lhs, in Size rhs) => lhs.width == rhs.width && lhs.height == rhs.height;
-            public static bool operator !=(in Size lhs, in Size rhs) => lhs.width != rhs.width && lhs.height != rhs.height;
+            public static bool operator !=(in Size lhs, in Size rhs) => lhs.width != rhs.width || lhs.height != rhs.height;
 
             public override bool Equals(object? obj) => obj is Size bounds && width == bounds.width && height == bounds.height;
             public override int GetHashCode() => HashCode.Combine(width, height);
@@ -237,7 +338,7 @@ namespace rat
         /// </summary>
         public struct Bounds
         {
-            public uint width, height, depth;
+            public int width, height, depth;
 
             public Bounds(in Bounds bounds)
             {
@@ -246,7 +347,7 @@ namespace rat
                 depth = bounds.depth;
             }
 
-            public Bounds(uint width, uint height, uint depth)
+            public Bounds(int width, int height, int depth)
             {
                 this.width = width;
                 this.height = height;
@@ -262,8 +363,8 @@ namespace rat
             public static readonly Bounds Sixteen = new Bounds(16, 16, 16);
             public static readonly Bounds Thritytwo = new Bounds(32, 32, 32);
 
-            public uint Area => width * height;
-            public uint Volume => width * height * depth;
+            public int Area => width * height;
+            public int Volume => width * height * depth;
 
             public static Bounds operator +(in Bounds lhs, in Bounds rhs) => new Bounds(lhs.width + rhs.width, lhs.height + rhs.height, lhs.depth + rhs.depth);
             public static Bounds operator +(in Bounds lhs, in Size rhs) => new Bounds(lhs.width + rhs.width, lhs.height + rhs.height, lhs.depth);
@@ -273,20 +374,20 @@ namespace rat
 
             public static Bounds operator *(in Bounds lhs, in Bounds rhs) => new Bounds(lhs.width * rhs.width, lhs.height * rhs.height, lhs.depth * rhs.depth);
             public static Bounds operator *(in Bounds lhs, in Size rhs) => new Bounds(lhs.width * rhs.width, lhs.height * rhs.height, lhs.depth);
-            public static Bounds operator *(in Bounds lhs, double scalar) => new Bounds((uint)(lhs.width * scalar), (uint)(lhs.height * scalar), (uint)(lhs.depth * scalar));
+            public static Bounds operator *(in Bounds lhs, double scalar) => new Bounds((int)(lhs.width * scalar), (int)(lhs.height * scalar), (int)(lhs.depth * scalar));
 
             public static Bounds operator /(in Bounds lhs, in Bounds rhs) => new Bounds(lhs.width / rhs.width, lhs.height / rhs.height, lhs.depth / rhs.depth);
             public static Bounds operator /(in Bounds lhs, in Size rhs) => new Bounds(lhs.width / rhs.width, lhs.height / rhs.height, lhs.depth);
-            public static Bounds operator /(in Bounds lhs, double scalar) => new Bounds((uint)(lhs.width / scalar), (uint)(lhs.height / scalar), (uint)(lhs.depth / scalar));
+            public static Bounds operator /(in Bounds lhs, double scalar) => new Bounds((int)(lhs.width / scalar), (int)(lhs.height / scalar), (int)(lhs.depth / scalar));
 
             public static bool operator ==(in Bounds lhs, in Bounds rhs) => lhs.width == rhs.width && lhs.height == rhs.height && lhs.depth == rhs.depth;
-            public static bool operator !=(in Bounds lhs, in Bounds rhs) => lhs.width != rhs.width && lhs.height != rhs.height && lhs.depth != rhs.depth;
+            public static bool operator !=(in Bounds lhs, in Bounds rhs) => lhs.width != rhs.width || lhs.height != rhs.height || lhs.depth != rhs.depth;
 
             public override bool Equals(object? obj) => obj is Bounds bounds && width == bounds.width && height == bounds.height && depth == bounds.depth;
             public override int GetHashCode() => HashCode.Combine(width, height, depth);
 
             public static implicit operator Size(in Bounds b) => new Size(b.width, b.height);
-            public static Bounds ToBounds(in Size s, uint depth) => new Bounds(s.width, s.height, depth);
+            public static Bounds ToBounds(in Size s, int depth) => new Bounds(s.width, s.height, depth);
 
             public override string ToString() => new string($"({width}, {height}, {depth})");
         }
@@ -357,6 +458,35 @@ namespace rat
                 this.size = size;
                 this.rotation = rotation;
             }
+        }
+
+        public struct Angle
+        {
+            private double _angle;
+
+            public Angle(double angle)
+            {
+                _angle = angle;
+            }
+
+            public double Degrees { get => _angle; set => _angle = value; }
+            public double Radians { get => Math.ToRadians(_angle); set => _angle = Math.ToDegrees(value); }
+
+            public Cardinal Direction => RoundTo(_angle, 45.0) switch
+            {
+                   0.0 => Cardinal.East,
+                 -45.0 => Cardinal.Northeast,
+                 -90.0 => Cardinal.North,
+                -135.0 => Cardinal.Northwest,
+                  45.0 => Cardinal.Southeast,
+                  90.0 => Cardinal.South,
+                 135.0 => Cardinal.Southwest,
+                 180.0 => Cardinal.West,
+                     _ => Cardinal.Central,
+            };
+
+            public static double RoundTo(double value, double to)
+                => System.Math.Round(value / to) * to;
         }
 
         /// <summary>
