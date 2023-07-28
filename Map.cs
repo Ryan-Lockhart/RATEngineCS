@@ -38,22 +38,22 @@ namespace rat
 
 		private Point m_Position;
 
-		private Bounds m_Bounds;
-		private Bounds m_Border;
+		private Size m_Size;
+		private Size m_Border;
 
         private bool m_Revealed;
 
         public Point Position { get => m_Position; private set => m_Position = value; }
         public bool Revealed => m_Revealed;
 
-        public Cell? this[in Coord coord]
+        public Cell? this[in Point position]
         {
             get
             {
-                if (!IsValid(coord)) { return null; }
+                if (!IsValid(position)) { return null; }
                 else
                 {
-                    try { return m_Cells[Index(coord)]; }
+                    try { return m_Cells[Index(position)]; }
                     catch { return null; }
                 }
             }
@@ -68,30 +68,30 @@ namespace rat
             }
         }
 
-        private int Index(in Coord coord)
+        private int Index(in Point position)
 		{
-			return (int)(coord.z * m_Bounds.Area + coord.y * m_Bounds.height + coord.x);
+			return position.y * m_Size.width + position.x;
         }
 
-        private int Index(int x, int y, int z)
+        private int Index(int x, int y)
         {
-            return (int)(z * m_Bounds.Area + y * m_Bounds.height + x);
+            return y * m_Size.height + x;
         }
 
         private void ConstrainToScreen()
 		{
             if (m_Position.x < 0)
                 m_Position.x = 0;
-            else if (m_Position.x > m_Bounds.width - Screens.MapDisplay.size.width)
-                m_Position.x = m_Bounds.width - Screens.MapDisplay.size.width;
+            else if (m_Position.x > m_Size.width - Screens.MapDisplay.size.width)
+                m_Position.x = m_Size.width - Screens.MapDisplay.size.width;
 
             if (m_Position.y < 0)
                 m_Position.y = 0;
-            else if (m_Position.y > m_Bounds.height - Screens.MapDisplay.size.height)
-                m_Position.y = m_Bounds.height - Screens.MapDisplay.size.height;
+            else if (m_Position.y > m_Size.height - Screens.MapDisplay.size.height)
+                m_Position.y = m_Size.height - Screens.MapDisplay.size.height;
         }
 
-		private void ShadowCast(in Coord origin, List<Coord> fov, int row, double start, double end, in Octant octant, double radius)
+		private void ShadowCast(in Point origin, List<Point> fov, int row, double start, double end, in Octant octant, double radius)
         {
             double newStart = 0;
 
@@ -100,14 +100,13 @@ namespace rat
 
             bool blocked = false;
 
-            for (double distance = row; distance <= radius && distance < m_Bounds.Area && !blocked; distance++)
+            for (double distance = row; distance <= radius && distance < m_Size.Area && !blocked; distance++)
             {
                 double deltaY = -distance;
 
                 for (double deltaX = -distance; deltaX <= 0; deltaX++)
                 {
-                    Coord currentPosition = new Coord((long)(origin.x + deltaX * octant.x + deltaY * octant.dx), (long)(origin.y + deltaX * octant.y + deltaY * octant.dy), origin.z);
-                    Coord delta = currentPosition - origin;
+                    Point currentPosition = new Point((int)(origin.x + deltaX * octant.x + deltaY * octant.dx), (int)(origin.y + deltaX * octant.y + deltaY * octant.dy));
 
                     double leftSlope = (deltaX - 0.5) / (deltaY + 0.5);
                     double rightSlope = (deltaX + 0.5) / (deltaY - 0.5);
@@ -149,7 +148,7 @@ namespace rat
             }
         }
 
-		private void ShadowCast(in Coord origin, List<Coord> fov, int row, double start, double end, in Octant octant, double radius, double angle, double span)
+		private void ShadowCast(in Point origin, List<Point> fov, int row, double start, double end, in Octant octant, double radius, double angle, double span)
         {
             double newStart = 0;
 
@@ -158,14 +157,14 @@ namespace rat
 
             bool blocked = false;
 
-            for (double distance = row; distance <= radius && distance < m_Bounds.Area && !blocked; distance++)
+            for (double distance = row; distance <= radius && distance < m_Size.Area && !blocked; distance++)
             {
                 double deltaY = -distance;
 
                 for (double deltaX = -distance; deltaX <= 0; deltaX++)
                 {
-                    Coord currentPosition = new Coord((long)(origin.x + deltaX * octant.x + deltaY * octant.dx), (long)(origin.y + deltaX * octant.y + deltaY * octant.dy), origin.z);
-                    Coord delta = currentPosition - origin;
+                    Point currentPosition = new Point((int)(origin.x + deltaX * octant.x + deltaY * octant.dx), (int)(origin.y + deltaX * octant.y + deltaY * octant.dy));
+                    Point delta = currentPosition - origin;
 
                     double leftSlope = (deltaX - 0.5) / (deltaY + 0.5);
                     double rightSlope = (deltaX + 0.5) / (deltaY - 0.5);
@@ -208,41 +207,41 @@ namespace rat
             }
         }
 
-		public Map(in Bounds size, in Bounds border)
+		public Map(in Size size, in Size border)
 		{
             m_Position = Point.Zero;
 
-            m_Bounds = size;
+            m_Size = size;
             m_Border = border;
 
-            m_Solids = new BitArray((int)m_Bounds.Volume, false);
-            m_Cells = new Cell[m_Bounds.Volume];
+            m_Solids = new BitArray(m_Size.Area, false);
+            m_Cells = new Cell[m_Size.Area];
         }
 
-        public Map(in Bounds size, in Bounds border, float fillPercent, int iterations, int threshold)
+        public Map(in Size size, in Size border, float fillPercent, int iterations, int threshold)
         {
             m_Position = Point.Zero;
 
-            m_Bounds = size;
+            m_Size = size;
             m_Border = border;
 
-            m_Solids = new BitArray((int)m_Bounds.Volume, false);
-            m_Cells = new Cell[m_Bounds.Volume];
+            m_Solids = new BitArray(m_Size.Area, false);
+            m_Cells = new Cell[m_Size.Area];
 
             Generate(fillPercent);
             Smooth(iterations, threshold);
             Populate();
         }
 
-        public Map(in Bounds size, in Bounds border, in WorldGenerationSettings settings)
+        public Map(in Size size, in Size border, in WorldGenerationSettings settings)
         {
             m_Position = Point.Zero;
 
-            m_Bounds = size;
+            m_Size = size;
             m_Border = border;
 
-            m_Solids = new BitArray((int)m_Bounds.Volume, false);
-            m_Cells = new Cell[m_Bounds.Volume];
+            m_Solids = new BitArray(m_Size.Area, false);
+            m_Cells = new Cell[m_Size.Area];
 
             Generate(settings.fillPercent);
             Smooth(settings.iterations, settings.threshold);
@@ -261,76 +260,69 @@ namespace rat
 		{
             m_Generating = true;
 
-            for (long z = 0; z < m_Bounds.depth; z++)
-                for (long y = 0; y < m_Bounds.height; y++)
-                    for (long x = 0; x < m_Bounds.width; x++)
-                    {
-                        Coord coord = new Coord(x, y, z);
+            for (int y = 0; y < m_Size.height; y++)
+                for (int x = 0; x < m_Size.width; x++)
+                {
+                    Point position = new Point(x, y);
 
-                        m_Solids[Index(coord)] = WithinBounds(coord) ? Globals.Generator.NextBool(fillPercent) : true;
-                    }
+                    m_Solids[Index(position)] = WithinBounds(position) ? Globals.Generator.NextBool(fillPercent) : true;
+                }
         }
 
         public void Smooth(int iterations = 5, int threshold = 4)
 		{
             BitArray smoothed = new BitArray(m_Solids);
 
-            for (ulong i = 0; i < (ulong)iterations; i++)
+            for (int i = 0; i < iterations; i++)
             {
-                for (long z = 0; z < m_Bounds.depth; z++)
-                    for (long y = 0; y < m_Bounds.height; y++)
-                        for (long x = 0; x < m_Bounds.width; x++)
-                        {
-                            Coord coord = new Coord(x, y, z);
+                for (int y = 0; y < m_Size.height; y++)
+                    for (int x = 0; x < m_Size.width; x++)
+                    {
+                        Point position = new Point(x, y);
 
-                            smoothed[Index(coord)] = WithinBounds(coord) ? Automatize(coord, threshold, m_Solids) : true;
-                        }
+                        smoothed[Index(position)] = WithinBounds(position) ? Automatize(position, threshold, m_Solids) : true;
+                    }
 
                 (smoothed, m_Solids) = (m_Solids, smoothed);
             }
         }
 
-		public bool Automatize(in Coord position, int threshold, in BitArray solids)
+		public bool Automatize(in Point position, int threshold, in BitArray solids)
 		{
             bool originalState = m_Solids[Index(position)];
 
             int neighbours = 0;
 
-            bool isFlat = m_Bounds.depth == 1;
-
-            for (long offset_z = isFlat ? 1 : -1; offset_z < 2; offset_z++)
-                for (long offset_y = -1; offset_y < 2; offset_y++)
-                    for (long offset_x = -1; offset_x < 2; offset_x++)
-                        if (offset_x != 0 || offset_y != 0 || (offset_z != 0 || isFlat))
-                            neighbours += IsSolid(position + new Coord(offset_x, offset_y, isFlat ? 0 : offset_z), solids) ? 1 : 0;
+            for (int offset_y = -1; offset_y < 2; offset_y++)
+                for (int offset_x = -1; offset_x < 2; offset_x++)
+                    if (offset_x != 0 || offset_y != 0)
+                        neighbours += IsSolid(position + new Point(offset_x, offset_y), solids) ? 1 : 0;
 
             return neighbours > threshold ? true : neighbours < threshold ? false : originalState;
         }
 
         public void Populate()
-		{
-            for (long z = 0; z < m_Bounds.depth; z++)
-                for (long y = 0; y < m_Bounds.height; y++)
-                    for (long x = 0; x < m_Bounds.width; x++)
-                    {
-                        Coord coord = new Coord(x, y, z);
+        {
+            for (int y = 0; y < m_Size.height; y++)
+                for (int x = 0; x < m_Size.width; x++)
+                {
+                    Point position = new Point(x, y);
 
-                        bool solid = IsSolid(coord, m_Solids);
+                    bool solid = IsSolid(position, m_Solids);
 
-                        if (this[coord] != null)
-                            m_Cells[Index(coord)].Reinitialize(coord, solid, solid);
-                        else
-                            m_Cells[Index(coord)] = new Cell(coord, this, solid, solid);
-                    }
+                    if (this[position] != null)
+                        m_Cells[Index(position)].Reinitialize(position, solid, solid);
+                    else
+                        m_Cells[Index(position)] = new Cell(position, this, solid, solid);
+                }
 
-            for (long z = 0; z < m_Bounds.depth; z++)
-                for (long y = 0; y < m_Bounds.height; y++)
-                    for (long x = 0; x < m_Bounds.width; x++)
-                    {
-                        Coord coord = new Coord(x, y, z);
+            for (int y = 0; y < m_Size.height; y++)
+                for (int x = 0; x < m_Size.width; x++)
+                {
+                    Point position = new Point(x, y);
 
-                        m_Cells[Index(coord)].GenerateNeighbourhood();
-                    }
+                    m_Cells[Index(position)].GenerateNeighbourhood();
+                }
 
             RecalculateIndices();
 
@@ -356,16 +348,15 @@ namespace rat
 
 		public Cell? FindOpen(float checkPercent = 0.5f)
 		{
-            int maxChecks = (int)(m_Bounds.Volume * checkPercent);
+            int maxChecks = (int)(m_Size.Area * checkPercent);
             int checks = 0;
 
             while (checks < maxChecks)
             {
-                long x = Globals.Generator.Next(0, (int)m_Bounds.width - 1);
-                long y = Globals.Generator.Next(0, (int)m_Bounds.height - 1);
-                long z = Globals.Generator.Next(0, (int)m_Bounds.depth - 1);
+                int x = Globals.Generator.Next(0, m_Size.width - 1);
+                int y = Globals.Generator.Next(0, m_Size.height - 1);
 
-                Coord randomPosition = new Coord(x, y, z);
+                Point randomPosition = new Point(x, y);
 
                 Cell? randomCell = this[randomPosition];
 
@@ -381,13 +372,13 @@ namespace rat
             throw new Exception("No open cells!");
         }
 
-        public bool IsSolid(in Coord position)
+        public bool IsSolid(in Point position)
         {
             return IsValid(position) ?
                 m_Solids[Index(position)] : true;
         }
 
-        public bool IsSolid(in Coord position, in BitArray solids)
+        public bool IsSolid(in Point position, in BitArray solids)
 		{
 			return IsValid(position) ?
 				solids[Index(position)] : true;
@@ -398,10 +389,9 @@ namespace rat
         /// </summary>
 		public void ResetSeen()
         {
-            for (int z = 0; z < m_Bounds.depth; z++)
-                for (int y = 0; y < m_Bounds.height; y++)
-                    for (int x = 0; x < m_Bounds.width; x++)
-                        this[Index(x, y, z)].Seen = false;
+            for (int y = 0; y < m_Size.height; y++)
+                for (int x = 0; x < m_Size.width; x++)
+                    this[Index(x, y)].Seen = false;
         }
 
         /// <summary>
@@ -411,20 +401,20 @@ namespace rat
         {
             if (m_Revealed) return;
 
-            for (int z = 0; z < m_Bounds.depth; z++)
-                for (int y = 0; y < m_Bounds.height; y++)
-                    for (int x = 0; x < m_Bounds.width; x++)
-                    {
-                        Cell cell = this[Index(x, y, z)];
+            for (int y = 0; y < m_Size.height; y++)
+                for (int x = 0; x < m_Size.width; x++)
+                {
+                    Cell cell = this[Index(x, y)];
 
-                        cell.Explored = true;
+                    cell.Explored = true;
 
-                        if (!onlyFog)
-                            cell.Seen = true;
-                    }
+                    if (!onlyFog)
+                        cell.Seen = true;
+                }
+
         }
 
-        public void RevealMap(in List<Coord> fov, bool resetSeen = true)
+        public void RevealMap(in List<Point> fov, bool resetSeen = true)
         {
             if (resetSeen) ResetSeen();
 
@@ -438,7 +428,7 @@ namespace rat
             }
         }
 
-        public void CenterOn(in Coord position)
+        public void CenterOn(in Point position)
         {
             if (!IsValid(position))
                 return;
@@ -449,29 +439,23 @@ namespace rat
             ConstrainToScreen();
         }
 
-        public void Draw(in GlyphSet glyphSet, long drawDepth, in Point offset)
+        public void Draw(in GlyphSet glyphSet, int drawDepth, in Point offset)
 		{
-            if (drawDepth < 0 || drawDepth > m_Bounds.depth)
-                return;
-
-            for (long y = m_Position.y; y < m_Position.y + Screens.MapDisplay.size.height; y++)
-                for (long x = m_Position.x; x < m_Position.x + Screens.MapDisplay.size.width; x++)
+            for (int y = m_Position.y; y < m_Position.y + Screens.MapDisplay.size.height; y++)
+                for (int x = m_Position.x; x < m_Position.x + Screens.MapDisplay.size.width; x++)
                 {
-                    if (m_Generating)
-                    {
-                        Coord drawCoord = new Coord(x, y, drawDepth);
+                    Point currentPosition = new Point(x, y);
+                    int index = Index(currentPosition);
 
-                        glyphSet.DrawGlyph(m_Solids[Index(drawCoord)] ? Glyphs.ASCII.Wall : Glyphs.ASCII.Floor, m_Position - drawCoord + offset);
-                    }
+                    if (m_Generating)
+                        glyphSet.DrawGlyph(m_Solids[index] ? Glyphs.ASCII.Wall : Glyphs.ASCII.Floor, m_Position - currentPosition + offset);
                     else
                     {
-                        Coord cellCoord = new Coord(x, y, drawDepth);
-
-                        Cell? cell = this[cellCoord];
+                        Cell? cell = this[currentPosition];
 
                         if (cell != null)
                             cell.Draw(glyphSet, m_Position - offset, true);
-                        else glyphSet.DrawGlyph(m_Solids[Index(cellCoord)] ? Glyphs.ASCII.Wall : Glyphs.ASCII.Floor, m_Position - cellCoord + offset);
+                        else glyphSet.DrawGlyph(m_Solids[index] ? Glyphs.ASCII.Wall : Glyphs.ASCII.Floor, m_Position - currentPosition + offset);
                     }
                 }
         }
@@ -482,23 +466,17 @@ namespace rat
                 if (cell != null) cell.Update();
         }
 
-        public bool IsValid(in Coord position)
-        {
-            bool isFlat = m_Bounds.depth == 1;
-            return position.x >= 0 && position.y >= 0 && position.x < m_Bounds.width && position.y < m_Bounds.height && position.z >= 0 && (position.z < m_Bounds.depth || isFlat);
-        }
+        public bool IsValid(in Point position)
+            => position.x >= 0 && position.y >= 0 && position.x < m_Size.width && position.y < m_Size.height;
 
-        public bool WithinBounds(in Coord position)
-        {
-            bool isFlat = m_Bounds.depth == 1;
-            return position.x >= m_Border.width && position.y >= m_Border.height && position.x < m_Bounds.width - m_Border.width && position.y < m_Bounds.height - m_Border.height && (position.z >= m_Border.depth || isFlat) && (position.z < m_Bounds.depth - m_Border.depth || isFlat);
-        }
+        public bool WithinBounds(in Point position)
+            => position.x >= m_Border.width && position.y >= m_Border.height && position.x < m_Size.width - m_Border.width && position.y < m_Size.height - m_Border.height;
 
         public bool IsGenerating() => m_Generating;
 
-        public List<Coord> CalculateFOV(in Coord origin, double viewDistance)
+        public List<Point> CalculateFOV(in Point origin, double viewDistance)
         {
-            List<Coord> fov = new List<Coord>();
+            List<Point> fov = new List<Point>();
 
             viewDistance = System.Math.Max(1, viewDistance);
 
@@ -520,9 +498,9 @@ namespace rat
             return fov;
         }
 
-        public List<Coord> CalculateFOV(in Coord origin, double viewDistance, double angle, double span)
+        public List<Point> CalculateFOV(in Point origin, double viewDistance, double angle, double span)
         {
-            List<Coord> fov = new List<Coord>();
+            List<Point> fov = new List<Point>();
 
             viewDistance = System.Math.Max(1, viewDistance);
 
@@ -548,14 +526,14 @@ namespace rat
             return fov;
         }
 
-        public List<Coord> CalculateFOV(in Coord origin, double viewDistance, double angle, double span, double nudge)
+        public List<Point> CalculateFOV(in Point origin, double viewDistance, double angle, double span, double nudge)
         {
-            List<Coord> fov = new List<Coord>();
+            List<Point> fov = new List<Point>();
 
             double radians = Math.ToRadians(angle);
 
-            Coord shiftedOrigin = nudge != 0 ?
-			    new Coord( origin.x + (long)(System.Math.Cos(radians) * nudge), origin.y + (long)(System.Math.Sin(radians) * nudge), origin.z) :
+            Point shiftedOrigin = nudge != 0 ?
+			    new Point( origin.x + (int)(System.Math.Cos(radians) * nudge), origin.y + (int)(System.Math.Sin(radians) * nudge)) :
                 origin;
 
 		    viewDistance = System.Math.Max(1, viewDistance);
@@ -582,22 +560,23 @@ namespace rat
             return fov;
         }
 
-        public Stack<Coord> CalculatePath(in Coord origin, in Coord destination)
+        public Stack<Point>? CalculatePath(in Point origin, in Point destination)
         {
-            PriorityQueue<Coord, double> frontier = new PriorityQueue<Coord, double>();
+            PriorityQueue<Point, double> frontier = new PriorityQueue<Point, double>();
 
-            double initial_distance = Coord.Distance(origin, destination);
+            double initial_distance = Point.Distance(origin, destination);
 
             frontier.Enqueue(origin, initial_distance);
 
-            Dictionary<Coord, Coord> came_from = new Dictionary<Coord, Coord>();
-            Dictionary<Coord, double> cost_so_far = new Dictionary<Coord, double>();
+            Dictionary<Point, Point> came_from = new Dictionary<Point, Point>();
+            Dictionary<Point, double> cost_so_far = new Dictionary<Point, double>();
+
             came_from[origin] = origin;
             cost_so_far[origin] = initial_distance;
 
             while (frontier.Count > 0)
             {
-                Coord currentPosition = frontier.Dequeue();
+                Point currentPosition = frontier.Dequeue();
 
                 if (currentPosition == destination)
                     break;
@@ -608,22 +587,29 @@ namespace rat
                 {
                     if (neighbor != null)
                     {
-                        Coord neighborPos = neighbor.Position;
-                        double new_cost = Coord.Distance(neighborPos, destination);
+                        if (neighbor.Solid) continue;
 
-                        if (!came_from.ContainsKey(neighborPos) && new_cost < cost_so_far[currentPosition])
+                        Point neighborPos = neighbor.Position;
+                        double new_cost = Point.Distance(neighborPos, destination);
+
+                        if (neighborPos != destination && neighbor.Occupied) continue;
+
+                        if (!came_from.ContainsKey(neighbor.Position) || new_cost < cost_so_far[neighborPos])
                         {
                             frontier.Enqueue(neighborPos, new_cost);
-                            came_from.Add(neighborPos, currentPosition);
-                            cost_so_far.Add(neighborPos, new_cost);
+                            came_from[neighborPos] = currentPosition;
+                            cost_so_far[neighborPos] = new_cost;
                         }
                     }
                 }
+
+                if (frontier.Count <= 0)
+                    return null;
             }
 
-            Stack<Coord> path = new Stack<Coord>();
+            Stack<Point> path = new Stack<Point>();
 
-            Coord current = destination;
+            Point current = destination;
 
             while (current != origin)
             {
@@ -634,7 +620,7 @@ namespace rat
             return path;
         }
 
-        public List<Cell?> GetNeighbourhood(in Coord position)
+        public List<Cell?> GetNeighbourhood(in Point position)
         {
             Cell? cell = this[position];
 
@@ -643,7 +629,7 @@ namespace rat
             return cell.Neighbours;
         }
 
-        public byte GetNeighbourCount(in Coord position)
+        public byte GetNeighbourCount(in Point position)
         {
             byte neighbourCount = 0;
 
@@ -651,7 +637,7 @@ namespace rat
                 for (int x_offset = -1; x_offset <= 1; x_offset++)
                 {
                     Point currentOffset = new Point(x_offset, y_offset);
-                    Coord currentPosition = position - currentOffset;
+                    Point currentPosition = position - currentOffset;
 
                     if (currentPosition != position)
                     {

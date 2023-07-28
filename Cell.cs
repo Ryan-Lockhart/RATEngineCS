@@ -43,11 +43,11 @@ namespace rat
             Overhang
         }
 
-        private Coord m_Position;
-        private Map? m_Parent;
+        private Point m_Position;
+        private Map m_Parent;
         private Actor? m_Occupant;
 
-        private List<Actor?> m_Corpses;
+        private List<Actor> m_Corpses;
         private List<Cell?> m_Neighbours;
 
         private int m_Index;
@@ -60,16 +60,16 @@ namespace rat
         private bool m_Seen;
         private bool m_Explored;
 
-        public Coord Position { get => m_Position; set => m_Position = value; }
+        public Point Position { get => m_Position; set => m_Position = value; }
 
-        public Map? Parent { get => m_Parent; set => m_Parent = value; }
+        public Map Parent { get => m_Parent; set => m_Parent = value; }
         public bool Orphan => Parent == null;
 
         public Actor? Occupant { get => m_Occupant; set => m_Occupant = value; }
         public bool Vacant => Occupant == null;
         public bool Occupied => Occupant != null;
 
-        public List<Actor?> Corpses { get => m_Corpses; set => m_Corpses = value; }
+        public List<Actor> Corpses { get => m_Corpses; set => m_Corpses = value; }
 
         public List<Cell?> Neighbours { get => m_Neighbours; set => m_Neighbours = value; }
 
@@ -127,21 +127,21 @@ namespace rat
 
             var neighbourhood = m_Parent.GetNeighbourhood(m_Position);
 
-            if ((neighbourhood[0] != null ? neighbourhood[0].Solid ? true : false : true) &&
-                (neighbourhood[1] != null ? neighbourhood[1].Solid ? true : false : true) &&
-                (neighbourhood[3] != null ? neighbourhood[3].Solid ? true : false : true)) m_Index += 8;
+            if ((neighbourhood[0] != null ? neighbourhood[0]!.Solid ? true : false : true) &&
+                (neighbourhood[1] != null ? neighbourhood[1]!.Solid ? true : false : true) &&
+                (neighbourhood[3] != null ? neighbourhood[3]!.Solid ? true : false : true)) m_Index += 8;
 
-            if ((neighbourhood[1] != null ? neighbourhood[1].Solid ? true : false : true) &&
-                (neighbourhood[2] != null ? neighbourhood[2].Solid ? true : false : true) &&
-                (neighbourhood[4] != null ? neighbourhood[4].Solid ? true : false : true)) m_Index += 4;
+            if ((neighbourhood[1] != null ? neighbourhood[1]!.Solid ? true : false : true) &&
+                (neighbourhood[2] != null ? neighbourhood[2]!.Solid ? true : false : true) &&
+                (neighbourhood[4] != null ? neighbourhood[4]!.Solid ? true : false : true)) m_Index += 4;
 
-            if ((neighbourhood[4] != null ? neighbourhood[4].Solid ? true : false : true) &&
-                (neighbourhood[6] != null ? neighbourhood[6].Solid ? true : false : true) &&
-                (neighbourhood[7] != null ? neighbourhood[7].Solid ? true : false : true)) m_Index += 2;
+            if ((neighbourhood[4] != null ? neighbourhood[4]!.Solid ? true : false : true) &&
+                (neighbourhood[6] != null ? neighbourhood[6]!.Solid ? true : false : true) &&
+                (neighbourhood[7] != null ? neighbourhood[7]!.Solid ? true : false : true)) m_Index += 2;
 
-            if ((neighbourhood[3] != null ? neighbourhood[3].Solid ? true : false : true) &&
-                (neighbourhood[5] != null ? neighbourhood[5].Solid ? true : false : true) &&
-                (neighbourhood[6] != null ? neighbourhood[6].Solid ? true : false : true)) m_Index += 1;
+            if ((neighbourhood[3] != null ? neighbourhood[3]!.Solid ? true : false : true) &&
+                (neighbourhood[5] != null ? neighbourhood[5]!.Solid ? true : false : true) &&
+                (neighbourhood[6] != null ? neighbourhood[6]!.Solid ? true : false : true)) m_Index += 1;
 
             if (m_Solid)
             {
@@ -183,20 +183,20 @@ namespace rat
             }
         }
 
-        public Cell(in Coord pos, Map? parent, bool solid = false, bool opaque = false)
+        public Cell(in Point position, Map parent, bool solid = false, bool opaque = false)
 		{
-            m_Position = pos;
+            m_Position = position;
             m_Parent = parent;
             m_Solid = solid;
             m_Opaque = opaque;
 
-            m_Corpses = new List<Actor?>();
+            m_Corpses = new List<Actor>();
             m_Neighbours = new List<Cell?>(8);
 		}
 
-        public void Reinitialize(in Coord pos, bool solid = false, bool opaque = false)
+        public void Reinitialize(in Point position, bool solid = false, bool opaque = false)
 		{
-            m_Position = pos;
+            m_Position = position;
             m_Solid = solid;
             m_Opaque = opaque;
 		}
@@ -259,10 +259,10 @@ namespace rat
 
             Point drawPosition = Position - screenPosition;
 
-            glyphSet.DrawGlyph(Index, Constants.Glyphs.ASCII.GetGlyph(Solid, Seen, Bloody).color, drawPosition);
+            glyphSet.DrawGlyph(Index, Constants.Colors.FetchColor(Solid, Seen, Bloody), drawPosition);
 
             if (Occupied && drawOccupant && Seen)
-                Occupant.Draw(glyphSet, screenPosition);
+                Occupant!.Draw(glyphSet, screenPosition);
             else if (Vacant && Seen)
                 if (m_Corpses.Count > 0)
                     glyphSet.DrawGlyph(new Glyph(Constants.Characters.Corpse, Constants.Colors.White), drawPosition);

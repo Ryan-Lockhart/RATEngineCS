@@ -37,14 +37,14 @@ namespace rat
             public static readonly string EngineVersion = "v0.001";
             public static readonly string EngineDate = "07/17/2023";
 
-            public static readonly Bounds MapSize = new Bounds(128, 128, 1);
-            public static readonly Bounds BorderSize = MapSize * 0.25;
+            public static readonly Size MapSize = new Size(1024, 1024);
+            public static readonly Size BorderSize = MapSize * 0.025;
 
             public static class MapGeneration
             {
-                public static WorldGenerationSettings TunnelHeavy = new WorldGenerationSettings(0.425f, 5, 4);
+                public static WorldGenerationSettings TunnelHeavy = new WorldGenerationSettings(0.475f, 5, 4);
                 public static WorldGenerationSettings OpenCave = new WorldGenerationSettings(0.35f, 10, 4);
-            }            
+            }
 
             /// <summary>
             /// Allows the controlled actor to occupy solid cells
@@ -159,11 +159,11 @@ namespace rat
             private static readonly double _UIToMap = 16.0 / 12.0;
             private static readonly double _MapToUI = 12.0 / 16.0;
 
-            public static Point UIToMap(in Point position) => new Point((long)(position.x * _UIToMap), (long)(position.y * _UIToMap));
-            public static Point MapToUI(in Point position) => new Point((long)(position.x * _MapToUI), (long)(position.y * _MapToUI));
+            public static Point UIToMap(in Point position) => new Point((int)(position.x * _UIToMap), (int)(position.y * _UIToMap));
+            public static Point MapToUI(in Point position) => new Point((int)(position.x * _MapToUI), (int)(position.y * _MapToUI));
 
-            public static Size UIToMap(in Size size) => new Size((uint)(size.width * _UIToMap), (uint)(size.height * _UIToMap));
-            public static Size MapToUI(in Size size) => new Size((uint)(size.width * _MapToUI), (uint)(size.height * _MapToUI));
+            public static Size UIToMap(in Size size) => new Size((int)(size.width * _UIToMap), (int)(size.height * _UIToMap));
+            public static Size MapToUI(in Size size) => new Size((int)(size.width * _MapToUI), (int)(size.height * _MapToUI));
         }
 
         /// <summary>
@@ -178,7 +178,19 @@ namespace rat
             public static readonly byte Obstacle = 0x4E;
             public static readonly byte Floor = 0x4D;
 
-            public static readonly byte Entity = 0x40;
+            public static readonly Dictionary<Cardinal, byte> Entity = new Dictionary<Cardinal, byte>()
+            {
+                { Cardinal.Northwest, 0x48 },
+                { Cardinal.North, 0x41 },
+                { Cardinal.Northeast, 0x42 },
+                { Cardinal.West, 0x47 },
+                { Cardinal.Central, 0x40 },
+                { Cardinal.East, 0x43 },
+                { Cardinal.Southwest, 0x46 },
+                { Cardinal.South, 0x45 },
+                { Cardinal.Southeast, 0x44 },
+            };
+
             public static readonly byte Medkit = 0x49;
             public static readonly byte Glock = 0x4A;
             public static readonly byte Ladder = 0x4B;
@@ -204,9 +216,11 @@ namespace rat
 
             public static readonly Color LightIntrite = new Color(132, 124, 124, 255);
             public static readonly Color Intrite = new Color(112, 104, 104, 255);
+            public static readonly Color DarkIntrite = new Color(92, 84, 84, 255);
 
             public static readonly Color LightCharcoal = new Color(60, 58, 58, 255);
             public static readonly Color Charcoal = new Color(40, 32, 32, 255);
+            public static readonly Color DarkCharcoal = new Color(20, 16, 16, 255);
 
             public static readonly Color BrightRed = new Color(255, 0, 0, 255);
             public static readonly Color LightRed = new Color(192, 0, 0, 255);
@@ -235,6 +249,13 @@ namespace rat
             public static readonly Color BrightOrange = new Color(255, 94, 5, 255);
             public static readonly Color LightOrange = new Color(255, 165, 115, 255);
             public static readonly Color DarkOrange = new Color(200, 71, 0, 255);
+
+            public static Color FetchColor(bool solid, bool seen, bool bloody)
+            {
+                if (bloody)
+                    return seen ? Materials.Blood : Materials.DarkBlood;
+                else return seen ? (solid ? Marble : LightIntrite) : (solid ? DarkMarble : DarkIntrite);
+            }
 
             /// <summary>
             /// Constant colors that represent various real world materials
@@ -284,29 +305,16 @@ namespace rat
             {
                 public static readonly Glyph Empty = new Glyph(Characters.Empty, Colors.Transperant);
 
-                public static Glyph GetGlyph(bool solid, bool seen, bool bloody)
-                {
-                    Glyph glyph = Empty;
-
-                    glyph.index = solid ? Characters.Wall : Characters.Floor;
-
-                    if (bloody)
-                        glyph.color = seen ? Colors.Materials.Blood : Colors.Materials.DarkBlood;
-                    else glyph.color = seen ? (solid ? Colors.Marble : Colors.LightCharcoal) : (solid ? Colors.DarkMarble : Colors.Charcoal);
-
-                    return glyph;
-                }
-
                 public static readonly Glyph Error = new Glyph(Characters.Error, Colors.BrightRed);
 
                 public static readonly Glyph Wall = new Glyph(Characters.Wall, Colors.Marble);
                 public static readonly Glyph Floor = new Glyph(Characters.Floor, Colors.LightCharcoal);
                 public static readonly Glyph Obstacle = new Glyph(Characters.Obstacle, Colors.LightIntrite);
 
-                public static readonly Glyph Player = new Glyph(Characters.Entity, Colors.BrightGreen);
-                public static readonly Glyph Enemy = new Glyph(Characters.Entity, Colors.BrightRed);
-                public static readonly Glyph Ally = new Glyph(Characters.Entity, Colors.BrightCyan);
-                public static readonly Glyph Neutral = new Glyph(Characters.Entity, Colors.BrightYellow);
+                public static readonly Glyph Player = new Glyph(Characters.Entity[Cardinal.Central], Colors.BrightGreen);
+                public static readonly Glyph Enemy = new Glyph(Characters.Entity[Cardinal.Central], Colors.BrightRed);
+                public static readonly Glyph Ally = new Glyph(Characters.Entity[Cardinal.Central], Colors.BrightCyan);
+                public static readonly Glyph Neutral = new Glyph(Characters.Entity[Cardinal.Central], Colors.BrightYellow);
             }
 
             /// <summary>

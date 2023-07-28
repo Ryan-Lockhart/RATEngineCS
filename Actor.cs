@@ -52,16 +52,16 @@ namespace rat
         protected string m_Name;
         protected string m_Description;
 
-        protected Map? m_Parent;
-        protected Cell? m_Residency;
+        protected Map m_Parent;
+        protected Cell m_Residency;
 
         protected Actor? m_Target;
-        protected Stack<Coord> m_Path;
+        protected Stack<Point>? m_Path;
 
         protected Glyph m_Glyph;
 
-        protected Coord m_Position;
-        protected double m_Angle;
+        protected Point m_Position;
+        protected Angle m_Heading;
         protected Stance m_Stance;
 
         protected int m_Reach;
@@ -85,23 +85,20 @@ namespace rat
         public string Name { get => m_Name; set => m_Name = value; }
         public string Description { get => m_Description; set => m_Description = value; }
 
-        public Map? Parent { get => m_Parent; set => m_Parent = value; }
-        public bool HasParent => m_Parent != null;
-
-        public Cell? Residency { get => m_Residency; set => m_Residency = value; }
-        public bool HasResidency => m_Residency != null;
+        public Map Parent { get => m_Parent; set => m_Parent = value; }
+        public Cell  Residency { get => m_Residency; set => m_Residency = value; }
 
         public Actor? Target { get => m_Target; set => m_Target = value; }
         public bool HasTarget => m_Target != null;
 
-        public Stack<Coord>? Path { get => m_Path; set => m_Path = value; }
+        public Stack<Point>? Path { get => m_Path; set => m_Path = value; }
         public bool HasPath => m_Path != null;
 
         public Glyph Glyph { get => m_Glyph; set => m_Glyph = value; }
 
-        public Coord Position { get => m_Position; set => m_Position = value; }
+        public Point Position { get => m_Position; set => m_Position = value; }
 
-        public double Angle { get => m_Angle; set => m_Angle = value; }
+        public Angle Angle { get => m_Heading; set => m_Heading = value; }
 
         public Stance Stance { get => m_Stance; set => m_Stance = value; }
 
@@ -148,26 +145,25 @@ namespace rat
             m_Dead = false;
             m_Bleeding = false;
 
-            m_MaxHealth = health + (randomize ? 0.0 : 0.0);
+            m_MaxHealth = health * (randomize ? Globals.Generator.NextRangeDouble(0.9, 1.1) : 1.0);
             m_CurrentHealth = MaxHealth;
 
-            m_Damage = damage + (randomize ? 0.0 : 0.0);
-            m_Armor = armor + (randomize ? 0.0 : 0.0);
+            m_Damage = damage * (randomize ? Globals.Generator.NextRangeDouble(0.9, 1.1) : 1.0);
+            m_Armor = armor * (randomize ? Globals.Generator.NextRangeDouble(0.9, 1.1) : 1.0);
 
-            m_Accuracy = accuracy + (randomize ? 0.0 : 0.0);
-            m_Dodge = dodge + (randomize ? 0.0 : 0.0);
-
-            m_Path = new Stack<Coord>();
+            m_Accuracy = accuracy * (randomize ? Globals.Generator.NextRangeDouble(0.9, 1.1) : 1.0);
+            m_Dodge = dodge * (randomize ? Globals.Generator.NextRangeDouble(0.9, 1.1) : 1.0);
         }
 
-        public Actor(ref ulong id, Map? map, string name, string description, in Glyph glyph, int reach, float health, float damage, float armor, float accuracy, float dodge, bool randomize, bool isAI = true)
+        public Actor(ref ulong id, Map map, string name, string description, in Glyph glyph, int reach, float health, float damage, float armor, float accuracy, float dodge, bool randomize, bool isAI = true)
         {
-            if (map == null) throw new ArgumentNullException(nameof(map));
-
             m_Parent = map;
-            m_Residency = map.FindOpen();
 
-            if (m_Residency == null) throw new NullReferenceException(nameof(m_Residency));
+            var randomCell = map.FindOpen();
+            if (randomCell == null) throw new Exception($"{nameof(map)} has no open cells!");
+            if (randomCell.Occupied) throw new Exception($"{nameof(randomCell)} is not vacant!");
+
+            m_Residency = randomCell;
 
             m_Residency.Occupant = this;
             m_Position = m_Residency.Position;
@@ -187,16 +183,16 @@ namespace rat
             m_Dead = false;
             m_Bleeding = false;
 
-            m_MaxHealth = health + (randomize ? 0.0 : 0.0);
+            m_MaxHealth = health * (randomize ? Globals.Generator.NextRangeDouble(0.9, 1.1) : 1.0);
             m_CurrentHealth = MaxHealth;
 
-            m_Damage = damage + (randomize ? 0.0 : 0.0);
-            m_Armor = armor + (randomize ? 0.0 : 0.0);
+            m_Damage = damage * (randomize ? Globals.Generator.NextRangeDouble(0.9, 1.1) : 1.0);
+            m_Armor = armor * (randomize ? Globals.Generator.NextRangeDouble(0.9, 1.1) : 1.0);
 
-            m_Accuracy = accuracy + (randomize ? 0.0 : 0.0);
-            m_Dodge = dodge + (randomize ? 0.0 : 0.0);
+            m_Accuracy = accuracy * (randomize ? Globals.Generator.NextRangeDouble(0.9, 1.1) : 1.0);
+            m_Dodge = dodge * (randomize ? Globals.Generator.NextRangeDouble(0.9, 1.1) : 1.0);
 
-            m_Path = new Stack<Coord>();
+            m_Path = new Stack<Point>();
         }
 
         public virtual void Update()
@@ -208,13 +204,13 @@ namespace rat
 
             if (Dead || !IsAI) return;
 
-            if (m_Path.Count > 0)
+            if (m_Path != null && m_Path.Count > 0)
                 Act(m_Path.Pop(), false);
             else
             {
                 if (Target == null)
                 {
-                    List<Coord> fov = Parent.CalculateFOV(m_Position, 32.0, m_Angle, 135.0);
+                    List<Point> fov = Parent.CalculateFOV(m_Position, 32.0, m_Heading.Degrees, 135.0);
 
                     Actor? closestActor = null;
                     double closestDistance = double.MaxValue;
@@ -231,7 +227,7 @@ namespace rat
 
                         if (actor == this || actor.Dead) continue;
 
-                        Coord delta = actor.Position - m_Position;
+                        Point delta = actor.Position - m_Position;
                         double distance = Math.Normalize(delta.x, delta.y);
 
                         if (closestActor == null)
@@ -257,10 +253,12 @@ namespace rat
                     if (WithinReach(Target.Position)) Act(Target.Position, false);
                     else
                     {
-                        m_Path = Parent.CalculatePath(Position, Target.Position);
+                        Act(Target.Position - Position, true);
 
-                        if (m_Path.Count > 0)
-                            Act(m_Path.Pop(), false);
+                        //m_Path = Parent.CalculatePath(Position, Target.Position);
+
+                        //if (m_Path.Count > 0)
+                        //    Act(m_Path.Pop(), false);
                     }
                 }
                 else
@@ -272,18 +270,22 @@ namespace rat
                     while (!is_valid)
                     {
                         wanderTarget = new Coord(Globals.Generator.Next(-10, 11), Globals.Generator.Next(-10, 11), 0) + m_Position;
-                        is_valid = Parent[wanderTarget].Open;
+
+                        var cell = Parent[wanderTarget];
+                        if (cell == null) continue;
+
+                        is_valid = cell.Open;
                     }
 
                     m_Path = Parent.CalculatePath(m_Position, wanderTarget);
 
-                    if (m_Path.Count > 0)
+                    if (HasPath && m_Path!.Count > 0)
                         Act(m_Path.Pop(), false);
                 }
             }
         }
 
-        public virtual void Act(in Coord position, bool offset = true)
+        public virtual void Act(in Point position, bool offset = true)
         {
             if (Dead) return;
 
@@ -291,7 +293,7 @@ namespace rat
 
             if (m_Bleeding)
             {
-                m_CurrentHealth -= 0.25f;
+                m_CurrentHealth -= m_MaxHealth * 0.0125;
                 Residency.Bloody = true;
 
                 if (m_CurrentHealth <= 0)
@@ -307,13 +309,13 @@ namespace rat
                 }
             }
 
-            Coord actPosition = offset ? m_Position + position : position;
+            Point actPosition = offset ? m_Position + position : position;
 
             if (!WithinReach(actPosition)) return;
 
-            Coord delta = actPosition - m_Position;
+            Point delta = actPosition - m_Position;
 
-            Angle = Math.ToDegrees(System.Math.Atan2(delta.y, delta.x));
+            Angle = new Angle(Math.ToDegrees(System.Math.Atan2(delta.y, delta.x)));
 
             if (Parent.WithinBounds(actPosition))
             {
@@ -331,7 +333,7 @@ namespace rat
             }
         }
 
-        public virtual void Act(in Coord position, Action action, bool offset = true)
+        public virtual void Act(in Point position, Action action, bool offset = true)
         {
             if (Dead) return;
 
@@ -339,7 +341,7 @@ namespace rat
 
             if (m_Bleeding)
             {
-                m_CurrentHealth -= 0.25f;
+                m_CurrentHealth -= m_MaxHealth * 0.0125;
                 Residency.Bloody = true;
 
                 if (m_CurrentHealth <= 0)
@@ -354,11 +356,11 @@ namespace rat
                 }
             }
 
-            Coord actPosition = offset ? m_Position + position : position;
+            Point actPosition = offset ? m_Position + position : position;
 
-            Coord delta = actPosition - m_Position;
+            Point delta = actPosition - m_Position;
 
-            Angle = Math.ToDegrees(System.Math.Atan2(delta.y, delta.x));
+            Angle = new Angle(Math.ToDegrees(System.Math.Atan2(delta.y, delta.x)));
 
             if (Parent.WithinBounds(actPosition) && action != Action.LookAt)
             {
@@ -383,18 +385,18 @@ namespace rat
             else if (action != Action.LookAt) LookAt(actPosition);
         }
 
-        public virtual void Draw(in GlyphSet glyphSet, in Point offset) => glyphSet.DrawGlyph(m_Glyph, m_Position - offset);
+        public virtual void Draw(in GlyphSet glyphSet, in Point offset) => glyphSet.DrawGlyph(Constants.Characters.Entity[m_Heading.Direction], m_Glyph.color, m_Position - offset);
 
-        public bool WithinReach(in Coord position)
+        public bool WithinReach(in Point position)
         {
-            Coord deltaPosition = position - Position;
+            Point deltaPosition = position - Position;
 
             return System.Math.Abs(deltaPosition.x) <= Reach && (System.Math.Abs(deltaPosition.y) <= Reach);
         }
 
 		public bool WithinReach(in Cell cell)
         {
-            Coord deltaPosition = cell.Position - Position;
+            Point deltaPosition = cell.Position - Position;
 
             return System.Math.Abs(deltaPosition.x) <= Reach && (System.Math.Abs(deltaPosition.y) <= Reach);
         }
@@ -433,11 +435,11 @@ namespace rat
             m_Position = to.Position;
         }
 
-        protected virtual void LookAt(in Coord where)
+        protected virtual void LookAt(in Point where)
         {
-            Coord delta = where - m_Position;
+            var delta = where - m_Position;
 
-            m_Angle = Math.ToDegrees(System.Math.Atan2(delta.y, delta.x));
+            m_Heading = new Angle(Math.ToDegrees(System.Math.Atan2(delta.y, delta.x)));
         }
 
 		protected virtual void LookAt(Cell? what)
@@ -454,7 +456,7 @@ namespace rat
             LookAt(what.Position);
         }
 
-        protected virtual void Attack(in Coord where)
+        protected virtual void Attack(in Point where)
         {
             if (Parent == null) return;
 
@@ -475,22 +477,22 @@ namespace rat
             {
                 if (randomizedAccuracy <= 0.0)
                     Globals.MessageLog.Enqueue(Name == "Jenkins" ? "\n" : "\nThe " + Name + " misses!");
-                else if (randomizedAccuracy > 0.0f && randomizedAccuracy <= 0.5f)
+                else if (randomizedAccuracy > 0.0 && randomizedAccuracy <= 0.5)
                     Globals.MessageLog.Enqueue(Name == "Jenkins" ? "\n" : "\nThe " + Name + " swings with reckless abandon!");
-                else if (randomizedAccuracy > 0.5f && randomizedAccuracy <= 1.0f)
+                else if (randomizedAccuracy > 0.5 && randomizedAccuracy <= 1.0)
                     Globals.MessageLog.Enqueue(Name == "Jenkins" ? "\n" : "\nThe " + Name + " swings wildly!");
-                else if (randomizedAccuracy > 1.0f && randomizedAccuracy <= 1.75f)
+                else if (randomizedAccuracy > 1.0 && randomizedAccuracy <= 1.75)
                     Globals.MessageLog.Enqueue(Name == "Jenkins" ? "\n" : "\nThe " + Name + " swings with skill!");
-                else if (randomizedAccuracy > 1.75f && randomizedAccuracy <= 2.5f)
+                else if (randomizedAccuracy > 1.75 && randomizedAccuracy <= 2.5)
                     Globals.MessageLog.Enqueue(Name == "Jenkins" ? "\n" : "\nThe " + Name + " executes an exquisite swing!");
-                else if (randomizedAccuracy > 2.5f)
+                else if (randomizedAccuracy > 2.5)
                     Globals.MessageLog.Enqueue(Name == "Jenkins" ? "\n" : "\nThe " + Name + " unleashes a masterful swing!");
             }
 
             what.Defend(this, what.Position - Position, randomizedAccuracy, randomizedDamage);
         }
 
-        protected virtual void Defend(Actor? attacker, in Coord direction, double accuracy, double damage)
+        protected virtual void Defend(Actor? attacker, in Point direction, double accuracy, double damage)
         {
             if (attacker == null) return;
             if (m_Residency == null) return;
@@ -498,24 +500,24 @@ namespace rat
 
             double randomizedDodge = Math.Clamp(m_Dodge * Globals.Generator.NextRangeDouble(0.15, 1.15), 0.0, 1.0);
 
-            bool crit = accuracy - randomizedDodge > 0.5f;
+            bool crit = accuracy - randomizedDodge > 0.5;
 
             if (IsAI) LookAt(attacker);
 
             if (accuracy > randomizedDodge)
             {
-                double modifiedDamage = Math.Clamp(damage - (crit ? m_Armor * 0.25f : m_Armor), 0.0f, double.MaxValue);
+                double modifiedDamage = Math.Clamp(damage - (crit ? m_Armor * 0.25 : m_Armor), 0.0, double.MaxValue);
 
                 if (crit) m_Bleeding = true;
 
-                if (modifiedDamage > 0.0f)
+                if (modifiedDamage > 0.0)
                 {
-                    m_CurrentHealth = Math.Clamp(m_CurrentHealth - modifiedDamage, 0.0f, double.MaxValue);
+                    m_CurrentHealth = Math.Clamp(m_CurrentHealth - modifiedDamage, 0.0, double.MaxValue);
 
                     m_Residency.Bloody = true;
                     int bloodParticles = crit ? 4 : 2;
 
-                    if (m_CurrentHealth <= 0.0f)
+                    if (m_CurrentHealth <= 0.0)
                     {
                         m_Dead = true;
                         m_Residency.AddCorpse(this);
@@ -536,10 +538,9 @@ namespace rat
                     {
                         double spatterDistance = Globals.Generator.NextRangeDouble(0.1, 1.0);
 
-                        Coord spatterPos = new Coord(
-                            (long)(spatterDistance * Globals.Generator.NextRangeDouble(direction.x, direction.x * (crit ? 4 : 2))) + m_Position.x,
-                            (long)(spatterDistance * Globals.Generator.NextRangeDouble(direction.y, direction.y * (crit ? 4 : 2))) + m_Position.y,
-                            m_Position.z
+                        Point spatterPos = new Point(
+                            (int)(spatterDistance * Globals.Generator.NextRangeDouble(direction.x, direction.x * (crit ? 4 : 2))) + m_Position.x,
+                            (int)(spatterDistance * Globals.Generator.NextRangeDouble(direction.y, direction.y * (crit ? 4 : 2))) + m_Position.y
                         );
 
                         Cell? spatterCell = m_Parent[spatterPos];
@@ -563,7 +564,7 @@ namespace rat
             }
         }
 
-        protected virtual void Push(in Coord where)
+        protected virtual void Push(in Point where)
         {
             if (Parent == null) return;
 
@@ -579,18 +580,18 @@ namespace rat
         {
             if (what == null) return;
 
-            Coord deltaPos = what.Position - Position;
+            Point deltaPos = what.Position - Position;
 
             what.Displace(this, deltaPos, true);
         }
 
-        protected virtual void Displace(Actor? displacer, in Coord to, bool offset = true)
+        protected virtual void Displace(Actor? displacer, in Point to, bool offset = true)
         {
             if (displacer == null) return;
             if (Parent == null) return;
             if (m_Residency == null) return;
 
-            Coord displacePos = offset ? m_Position + to : to;
+            Point displacePos = offset ? m_Position + to : to;
 
             Cell? where = Parent[displacePos];
             if (where == null) return;
@@ -610,7 +611,7 @@ namespace rat
             }
         }
 
-        protected virtual void Mine(in Coord where)
+        protected virtual void Mine(in Point where)
         {
             if (Parent == null) return;
 

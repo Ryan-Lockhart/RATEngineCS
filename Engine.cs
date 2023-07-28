@@ -32,14 +32,15 @@ namespace rat
 
         private bool m_ActionSelect;
         private Action m_CurrentAction;
-        private Coord m_ActionPosition;
 
         private ulong m_CurrentID;
 
         private List<Actor?> m_Actors;
         private int TotalActors => m_Actors.Count;
+
         private List<Actor?> m_Living;
         private int TotalAlive => m_Actors.Count;
+
         private List<Actor?> m_Dead;
         private int TotalDead => m_Actors.Count;
 
@@ -53,6 +54,48 @@ namespace rat
         private TimeSpan m_DeltaTime;
 
         private List<ConfigFlags> m_CurrentFlags;
+
+        private Point m_PathStart;
+        private Point m_PathEnd;
+        private bool m_PathStarted;
+        private List<Point> m_Path = new List<Point>();
+
+        private bool HasPath => m_Path.Count > 0;
+
+        private void StartPath()
+        {
+            if (HasPath) m_Path.Clear();
+
+            m_PathStart = m_Cursor.Transform.position;
+            m_PathStarted = true;
+        }
+
+        private void EndPath()
+        {
+            m_PathEnd = m_Cursor.Transform.position;
+
+            var path = m_Map.CalculatePath(m_PathStart, m_PathEnd);
+
+            if (path == null)
+            {
+                m_PathStarted = false;
+                return;
+            }
+
+            while (path.Count > 0) m_Path.Add(path.Pop());
+            m_PathStarted = false;
+        }
+
+        private void DrawPath()
+        {
+            if (!HasPath) return;
+
+            foreach (Point point in m_Path)
+                DrawRect((point - m_Map.Position + Screens.MapDisplay.position) * m_GameSet.GlyphSize, m_GameSet.GlyphSize, Colors.BrightBlue, Size.One, true);
+
+            DrawRect((m_PathStart - m_Map.Position + Screens.MapDisplay.position) * m_GameSet.GlyphSize, m_GameSet.GlyphSize, Colors.BrightGreen, Size.One, true);
+            DrawRect((m_PathEnd - m_Map.Position + Screens.MapDisplay.position) * m_GameSet.GlyphSize, m_GameSet.GlyphSize, Colors.BrightRed, Size.One, true);
+        }
 
         private void RecalculateFlags()
         {
@@ -81,7 +124,7 @@ namespace rat
 
             Size windowSize = Screens.WindowSize * GlyphSets.DefaultMapGlyphs.glyphSize;
 
-            Raylib.InitWindow((int)windowSize.width, (int)windowSize.height, "RATEngine");
+            Raylib.InitWindow(windowSize.width, windowSize.height, "RATEngine");
 
             m_CurrentFlags = new List<ConfigFlags>
             {
@@ -102,11 +145,12 @@ namespace rat
 
             m_Cursor = new Cursor(m_Map, Point.Zero, Size.One);
 
-            m_Player = new Actor(ref m_CurrentID, m_Map, "Jenkins", "A spry lad clad in armor and blade", Glyphs.ASCII.Player, 1, 10.0f, 5.0f, 7.5f, 0.50f, 0.75f, false, false);
-
             m_Actors = new List<Actor?>();
             m_Living = new List<Actor?>();
             m_Dead = new List<Actor?>();
+
+            m_Player = new Actor(ref m_CurrentID, m_Map, "Jenkins", "A spry lad clad in armor and blade", Glyphs.ASCII.Player, 1, 10.0f, 5.0f, 7.5f, 0.50f, 0.75f, false, false);
+            Globals.Player = m_Player;
 
             m_Actors.Add(m_Player);
             m_Living.Add(m_Player);
@@ -149,17 +193,22 @@ namespace rat
         }
 
         private void SetLastInput() => m_LastInputTime = DateTime.Now;
-        private bool AllowInput() => (DateTime.Now - m_LastInputTime).Milliseconds > Settings.MinimumInputTime;
+        private bool AllowInput => (DateTime.Now - m_LastInputTime).Milliseconds > Settings.MinimumInputTime;
 
         private void SetLastUpdate() => m_LastUpdateTime = DateTime.Now;
-        private bool AllowUpdate() => (DateTime.Now - m_LastUpdateTime).Milliseconds > Settings.MinimumUpdateTime;
+        private bool AllowUpdate => (DateTime.Now - m_LastUpdateTime).Milliseconds > Settings.MinimumUpdateTime;
 
         private void SetLastSummon() => m_LastSummonTime = DateTime.Now;
-        private bool AllowSummon() => (DateTime.Now - m_LastSummonTime).Milliseconds > Settings.MinimumSummonTime;
+        private bool AllowSummon => (DateTime.Now - m_LastSummonTime).Milliseconds > Settings.MinimumSummonTime;
 
         public virtual void Input()
         {
-            bool heldInput = AllowInput();
+            bool heldInput = AllowInput;
+
+            if (Raylib.IsMouseButtonPressed(MouseButton.MOUSE_BUTTON_LEFT) && !m_PathStarted)
+                StartPath();
+            else if (Raylib.IsMouseButtonPressed(MouseButton.MOUSE_BUTTON_LEFT) && m_PathStarted)
+                EndPath();
 
             if (m_ActionSelect)
             {
@@ -365,13 +414,13 @@ namespace rat
                                     break;
                             }
 
-                            m_Map.RevealMap(m_Map.CalculateFOV(m_Player.Position, view_distance, m_Player.Angle, view_span));
+                            m_Map.RevealMap(m_Map.CalculateFOV(m_Player.Position, view_distance, m_Player.Angle.Degrees, view_span));
                         }
                     }
                 }
                 else if (m_Player.Dead)
                 {
-                    if (AllowUpdate())
+                    if (AllowUpdate)
                     {
                         m_PlayerActed = true;
 
@@ -408,7 +457,7 @@ namespace rat
 
                 SetLastUpdate();
 
-                if (AllowSummon())
+                if (AllowSummon)
                 {
                     var summonCount = Globals.Generator.Next(Settings.Population.MinimumSummonEnemies, Settings.Population.MaximumSummonEnemies);
 
@@ -499,6 +548,8 @@ namespace rat
 
                 DrawLabel(actions, Screens.LeftSideBar.position + new Point(0, Screens.LeftSideBar.size.height / 2), Size.One, Alignments.LeftCentered, Colors.White);
             }
+
+            DrawPath();
 
             Raylib.EndDrawing();
         }
@@ -601,10 +652,10 @@ namespace rat
         {
             if (text == "") return;
 
-            uint numLines = text == "" ? 0u : 1u;
+            int numLines = text == "" ? 0 : 1;
 
-            uint maxWidth = 0u;
-            uint currWidth = 0u;
+            int maxWidth = 0;
+            int currWidth = 0;
 
             foreach (var c in text)
             {
@@ -613,16 +664,16 @@ namespace rat
                     case '\n':
                         numLines++;
                         maxWidth = System.Math.Max(maxWidth, currWidth);
-                        currWidth = 0u;
+                        currWidth = 0;
                         break;
                     case '\t':
-                        currWidth += currWidth % 4u > 0u ? currWidth % 4u : 4u;
+                        currWidth += currWidth % 4 > 0 ? currWidth % 4 : 4;
                         break;
                     case '\v':
-                        numLines += numLines % 4u > 0u ? numLines % 4u : 4u;
+                        numLines += numLines % 4 > 0 ? numLines % 4 : 4;
                         numLines++;
                         maxWidth = System.Math.Max(maxWidth, currWidth);
-                        currWidth = 0u;
+                        currWidth = 0;
                         break;
                     default:
                         currWidth++;
@@ -634,13 +685,13 @@ namespace rat
 
             Point startPosition = position;
 
-            if (alignment.horizontal == HorizontalAlignment.Center) startPosition.x -= maxWidth + (padding.width / 2) / 2u;
+            if (alignment.horizontal == HorizontalAlignment.Center) startPosition.x -= maxWidth + (padding.width / 2) / 2;
             else if (alignment.horizontal == HorizontalAlignment.Right) startPosition.x -= maxWidth + padding.height * 2;
 
-            if (alignment.vertical == VerticalAlignment.Center) startPosition.y -= numLines + (padding.height / 2) / 2u;
+            if (alignment.vertical == VerticalAlignment.Center) startPosition.y -= numLines + (padding.height / 2) / 2;
             else if (alignment.vertical == VerticalAlignment.Lower) startPosition.y -= numLines + padding.height * 2;
 
-            Size labelSize = new Size(maxWidth + padding.width * 2u, numLines + padding.height * 2u);
+            Size labelSize = new Size(maxWidth + padding.width * 2, numLines + padding.height * 2);
 
             DrawRect(startPosition, labelSize, Colors.Black, m_UISet.GlyphSize, true);
 
@@ -687,10 +738,10 @@ namespace rat
 
             Point startPosition = rect.position;
 
-            uint numLines = text == "" ? 0u : 1u;
+            int numLines = text == "" ? 0 : 1;
 
-            uint maxWidth = 0u;
-            uint currWidth = 0u;
+            int maxWidth = 0;
+            int currWidth = 0;
 
             foreach (var c in text)
             {
@@ -699,16 +750,16 @@ namespace rat
                     case '\n':
                         numLines++;
                         maxWidth = System.Math.Max(maxWidth, currWidth);
-                        currWidth = 0u;
+                        currWidth = 0;
                         break;
                     case '\t':
-                        currWidth += currWidth % 4u > 0u ? currWidth % 4u : 4u;
+                        currWidth += currWidth % 4 > 0 ? currWidth % 4 : 4;
                         break;
                     case '\v':
-                        numLines += numLines % 4u > 0u ? numLines % 4u : 4u;
+                        numLines += numLines % 4 > 0 ? numLines % 4 : 4;
                         numLines++;
                         maxWidth = System.Math.Max(maxWidth, currWidth);
-                        currWidth = 0u;
+                        currWidth = 0;
                         break;
                     default:
                         currWidth++;
@@ -781,7 +832,7 @@ namespace rat
                         text = $"{cursorRect.position}, {actor.Name}\n{actor.Description}";
                     else text = $"{cursorRect.position}, {(cell != null ? cell.State : " ??? ")}";
 
-                    var corpses = cell.Corpses;
+                    var corpses = cell!.Corpses;
 
                     if (corpses != null)
                     {
@@ -883,28 +934,28 @@ namespace rat
                 switch (next)
                 {
                     case 0:
-                        newlySpawned = new Actor(ref currentID, m_Map, "Gremlin", "A dimunitive creature with a cunning disposition", new Glyph(Characters.Entity, Colors.BrightYellow), 1, 1.5f, 0.65f, 0.0f, 0.266f, 0.475f, true);
+                        newlySpawned = new Actor(ref currentID, m_Map, "Gremlin", "A dimunitive creature with a cunning disposition", new Glyph(Characters.Entity[Cardinal.Central], Colors.BrightYellow), 1, 1.5f, 0.65f, 0.0f, 0.266f, 0.475f, true);
                         break;
                     case 1:
-                        newlySpawned = new Actor(ref currentID, m_Map, "Goblin", "A dexterous and selfish humanoid", new Glyph(Characters.Entity, Colors.LightGreen), 1, 3.5f, 1.25f, 0.5f, 0.375f, 0.675f, true);
+                        newlySpawned = new Actor(ref currentID, m_Map, "Goblin", "A dexterous and selfish humanoid", new Glyph(Characters.Entity[Cardinal.Central], Colors.LightGreen), 1, 3.5f, 1.25f, 0.5f, 0.375f, 0.675f, true);
                         break;
                     case 2:
-                        newlySpawned = new Actor(ref currentID, m_Map, "Ork", "A brutal and violent humanoid", new Glyph(Characters.Entity, Colors.BrightOrange), 1, 12.5f, 3.5f, 1.25f, 0.666f, 0.275f, true);
+                        newlySpawned = new Actor(ref currentID, m_Map, "Ork", "A brutal and violent humanoid", new Glyph(Characters.Entity[Cardinal.Central], Colors.BrightOrange), 1, 12.5f, 3.5f, 1.25f, 0.666f, 0.275f, true);
                         break;
                     case 3:
-                        newlySpawned = new Actor(ref currentID, m_Map, "Troll", "A giant humaniod of great strength", new Glyph(Characters.Entity, Colors.BrightRed), 1, 25.0f, 12.5f, 2.5f, 0.125f, 0.114f, true);
+                        newlySpawned = new Actor(ref currentID, m_Map, "Troll", "A giant humaniod of great strength", new Glyph(Characters.Entity[Cardinal.Central], Colors.BrightRed), 1, 25.0f, 12.5f, 2.5f, 0.125f, 0.114f, true);
                         break;
                     case 4:
-                        newlySpawned = new Actor(ref currentID, m_Map, "Draugr", "An undead servant of a wraith", new Glyph(Characters.Entity, Colors.DarkMarble), 1, 7.5f, 2.5f, 5.0f, 0.675f, 0.221f, true);
+                        newlySpawned = new Actor(ref currentID, m_Map, "Draugr", "An undead servant of a wraith", new Glyph(Characters.Entity[Cardinal.Central], Colors.DarkMarble), 1, 7.5f, 2.5f, 5.0f, 0.675f, 0.221f, true);
                         break;
                     case 5:
-                        newlySpawned = new Actor(ref currentID, m_Map, "Basilisk", "A large hexapedal reptile of terrible power", new Glyph(Characters.Entity, Colors.Intrite), 1, 17.5f, 7.5f, 3.75f, 0.425f, 0.321f, true);
+                        newlySpawned = new Actor(ref currentID, m_Map, "Basilisk", "A large hexapedal reptile of terrible power", new Glyph(Characters.Entity[Cardinal.Central], Colors.Intrite), 1, 17.5f, 7.5f, 3.75f, 0.425f, 0.321f, true);
                         break;
                     case 6:
-                        newlySpawned = new Actor(ref currentID, m_Map, "Serpentman", "A slithering humanoid with superior agility", new Glyph(Characters.Entity, Colors.BrightBlue), 1, 17.5f, 7.5f, 3.75f, 0.425f, 0.321f, true);
+                        newlySpawned = new Actor(ref currentID, m_Map, "Serpentman", "A slithering humanoid with superior agility", new Glyph(Characters.Entity[Cardinal.Central], Colors.BrightBlue), 1, 17.5f, 7.5f, 3.75f, 0.425f, 0.321f, true);
                         break;
                     case 7:
-                        newlySpawned = new Actor(ref currentID, m_Map, "Wraith", "An eldritch abomination! Woe upon thee...", new Glyph(Characters.Entity, Colors.BrightMagenta), 2, 125.0f, 75.0f, 30.0f, 0.75f, 0.975f, true);
+                        newlySpawned = new Actor(ref currentID, m_Map, "Wraith", "An eldritch abomination! Woe upon thee...", new Glyph(Characters.Entity[Cardinal.Central], Colors.BrightMagenta), 2, 125.0f, 75.0f, 30.0f, 0.75f, 0.975f, true);
                         break;
                 }
 
