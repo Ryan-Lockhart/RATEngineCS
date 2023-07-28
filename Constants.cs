@@ -37,7 +37,7 @@ namespace rat
             public static readonly string EngineVersion = "v0.001";
             public static readonly string EngineDate = "07/17/2023";
 
-            public static readonly Size MapSize = new Size(1024, 1024);
+            public static readonly Size MapSize = new Size(128, 128);
             public static readonly Size BorderSize = MapSize * 0.025;
 
             public static class MapGeneration

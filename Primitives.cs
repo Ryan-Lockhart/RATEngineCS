@@ -105,20 +105,28 @@ namespace rat
 
             public static Point Absolute(in Point coord) => new Point(System.Math.Abs(coord.x), System.Math.Abs(coord.y));
 
-            public static Point Direction(in Point origin, in Point target) => target - origin;
+            public static Point Direction(in Point origin, in Point target) => (target - origin).Normalize();
+
+            public Point Normalize()
+            {
+                double mag = Magnitude;
+                return new Point((int)(x / mag), (int)(y / mag));
+            }
+
+            public double Magnitude => System.Math.Sqrt(System.Math.Pow(x, 2) + System.Math.Pow(y, 2));
 
             public static Point AbsoluteDirection(in Point origin, in Point target) => Absolute(Direction(origin, target));
 
             public static double Distance(in Point origin, in Point target, in Distance distance = Primitives.Distance.Chebyshev)
             {
-                Point delta = AbsoluteDirection(origin, target);
+                Point delta = Absolute(target - origin);
 
                 return distance switch
                 {
                     Primitives.Distance.Manhattan => delta.x + delta.y,
                     Primitives.Distance.Chebyshev => System.Math.Max(delta.x, delta.y),
-                    Primitives.Distance.Octile => 1.0f * (delta.x + delta.y) + (1.414f - 2.0f * 1.0f) * System.Math.Min(delta.x, delta.y),
-                    Primitives.Distance.Euclidean => System.Math.Sqrt(System.Math.Pow(delta.x, 2f) + System.Math.Pow(delta.y, 2f)),
+                    Primitives.Distance.Octile => 1.0 * (delta.x + delta.y) + (1.414 - 2.0 * 1.0) * System.Math.Min(delta.x, delta.y),
+                    Primitives.Distance.Euclidean => System.Math.Sqrt(System.Math.Pow(delta.x, 2) + System.Math.Pow(delta.y, 2)),
                     _ => 0.0,
                 };
             }

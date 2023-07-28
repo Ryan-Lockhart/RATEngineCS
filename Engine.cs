@@ -212,27 +212,27 @@ namespace rat
 
             if (m_ActionSelect)
             {
-                if (Raylib.IsKeyPressed(KeyboardKey.KEY_KP_1))
+                if (Raylib.IsKeyPressed(KeyboardKey.KEY_ONE))
                 {
                     m_CurrentAction = Action.MoveTo;
                     m_ActionSelect = false;
                 }
-                else if (Raylib.IsKeyPressed(KeyboardKey.KEY_KP_2))
+                else if (Raylib.IsKeyPressed(KeyboardKey.KEY_TWO))
                 {
                     m_CurrentAction = Action.LookAt;
                     m_ActionSelect = false;
                 }
-                else if (Raylib.IsKeyPressed(KeyboardKey.KEY_KP_3))
+                else if (Raylib.IsKeyPressed(KeyboardKey.KEY_THREE))
                 {
                     m_CurrentAction = Action.Attack;
                     m_ActionSelect = false;
                 }
-                else if (Raylib.IsKeyPressed(KeyboardKey.KEY_KP_4))
+                else if (Raylib.IsKeyPressed(KeyboardKey.KEY_FOUR))
                 {
                     m_CurrentAction = Action.Push;
                     m_ActionSelect = false;
                 }
-                else if (Raylib.IsKeyPressed(KeyboardKey.KEY_KP_5))
+                else if (Raylib.IsKeyPressed(KeyboardKey.KEY_FIVE))
                 {
                     m_CurrentAction = Action.Mine;
                     m_ActionSelect = false;
@@ -353,7 +353,6 @@ namespace rat
 
                     if (Raylib.IsKeyDown(KeyboardKey.KEY_KP_5))
                     {
-                        m_PlayerActed = true;
                         m_CurrentAction = Action.None;
 
                         SetLastInput();
@@ -511,7 +510,7 @@ namespace rat
             else DrawLabel($"Message Log: ({Globals.MessageLog.Count})", new Point(128, Screens.MessageDisplay.position.y), Size.One, Alignments.RightCentered, Colors.White);
 
             if (m_Cursor != null)
-                DrawCursor(m_Cursor);
+                m_Cursor.Draw(this, m_Map, m_GameSet);
 
             if (m_ShowControls)
             {
@@ -802,90 +801,6 @@ namespace rat
                         break;
                 }
             }
-        }
-
-		public void DrawCursor(in Cursor cursor, bool attached = false)
-        {
-            Rect cursorRect = cursor.Transform;
-
-            Rect drawRect = new Rect(cursorRect.position - m_Map.Position + Screens.MapDisplay.position, cursorRect.size);
-
-            DrawRect(drawRect, cursor.Color, m_GameSet.GlyphSize);
-
-            TextAlignment alignment = cursor.Alignment;
-
-            Point offset = new Point(
-                alignment.horizontal == HorizontalAlignment.Right ? -1 : alignment.horizontal == HorizontalAlignment.Left ? 2 : 0,
-                alignment.vertical == VerticalAlignment.Lower ? -1 : alignment.vertical == VerticalAlignment.Upper ? 2 : 0
-            );
-
-            Cell? cell = cursor.Cell;
-            Actor? actor = cursor.Actor;
-
-            string text;
-
-            if (cell != null)
-            {
-                if (cell.Seen)
-                {
-                    if (actor != null)
-                        text = $"{cursorRect.position}, {actor.Name}\n{actor.Description}";
-                    else text = $"{cursorRect.position}, {(cell != null ? cell.State : " ??? ")}";
-
-                    var corpses = cell!.Corpses;
-
-                    if (corpses != null)
-                    {
-                        if (corpses.Count > 0)
-                        {
-                            text += "\n\nCorpses:";
-
-                            if (Settings.UseCorpseLimit)
-                            {
-                                for (int i = 0; i < corpses.Count; i++)
-                                {
-                                    Actor? corpse = corpses[i];
-                                    if (corpse != null) { text += "\n " + corpse.Name; }
-
-                                    if (i > Settings.CorpseLimit) break;
-                                }
-
-                                if (corpses.Count > Settings.CorpseLimit)
-                                    text += $"\n +{corpses.Count - Settings.CorpseLimit} more...";
-                            }
-                            else
-                            {
-                                foreach (var corpse in corpses)
-                                {
-                                    if (corpse == null) continue;
-                                    text += "\n" + corpse.Name;
-                                }
-                            }
-                        }
-                    }
-                }
-                else if (cell.Explored)
-                {
-                    text = $"{cursorRect.position}, {(cell != null ? cell.State : "\"???\"")}";
-                }
-                else text = cursorRect.position + ", ???";
-            }
-            else
-            {
-                text = cursorRect.position + ", ???";
-            }
-
-            DrawLabel(
-                text,
-                attached ?
-                    drawRect.position + (attached ? offset : Point.Zero) :
-                    new Point(Screens.MapDisplay.position.x + 128, Screens.FooterBar.position.y),
-                Size.One,
-                attached ?
-                    cursor.Alignment :
-                    Alignments.LowerRight,
-                Colors.White
-            );
         }
 
         /// <summary>

@@ -10,6 +10,7 @@ using rat.Constants;
 using rat.Primitives;
 
 using Color = rat.Primitives.Color;
+using GoRogue.GameFramework;
 
 namespace rat
 {
@@ -96,6 +97,8 @@ namespace rat
         private Cell? m_Cell;
         private Actor? m_Actor;
 
+        private Selection m_Selection;
+
         private Rect m_Transform;
         private Color m_Color;
 
@@ -118,6 +121,8 @@ namespace rat
         public Cell? Cell => m_Cell;
 
         public Actor? Actor => m_Actor;
+
+        public Selection Selection { get => m_Selection; set => m_Selection = value; }
 
         public Rect Transform { get => m_Transform; set => m_Transform = value; }
 
@@ -147,21 +152,93 @@ namespace rat
 
             m_Transform.position = gridPosition + mapPosition - offset;
 
-            m_Cell = m_Parent[(Coord)m_Transform.position];
+            m_Cell = m_Parent[m_Transform.position];
 
             m_Actor = m_Cell != null ? m_Cell.Occupant : null;
 
             m_Color = m_Actor != null && m_Cell != null ? m_Cell.Seen ? m_Actor.Glyph.color : Colors.White : Colors.White;
         }
 
-        public void Draw()
+        public void Draw(in Engine engine, in Map map, in GlyphSet glyphSet, bool attached = false)
         {
+            Rect drawRect = new Rect(Transform.position - map.Position + Screens.MapDisplay.position, Transform.size);
 
+            engine.DrawRect(drawRect, Color, glyphSet.GlyphSize);
+
+            Point offset = new Point(
+                Alignment.horizontal == HorizontalAlignment.Right ? -1 : Alignment.horizontal == HorizontalAlignment.Left ? 2 : 0,
+                Alignment.vertical == VerticalAlignment.Lower ? -1 : Alignment.vertical == VerticalAlignment.Upper ? 2 : 0
+            );
+
+            string text;
+
+            if (Cell != null)
+            {
+                if (Cell.Seen)
+                {
+                    if (Actor != null)
+                        text = $"{Transform.position}, {Actor.Name}\n{Actor.Description}";
+                    else text = $"{Transform.position}, {(Cell != null ? Cell.State : " ??? ")}";
+
+                    var corpses = Cell!.Corpses;
+
+                    if (corpses != null)
+                    {
+                        if (corpses.Count > 0)
+                        {
+                            text += "\n\nCorpses:";
+
+                            if (Settings.UseCorpseLimit)
+                            {
+                                for (int i = 0; i < corpses.Count; i++)
+                                {
+                                    Actor? corpse = corpses[i];
+                                    if (corpse != null) { text += "\n " + corpse.Name; }
+
+                                    if (i > Settings.CorpseLimit) break;
+                                }
+
+                                if (corpses.Count > Settings.CorpseLimit)
+                                    text += $"\n +{corpses.Count - Settings.CorpseLimit} more...";
+                            }
+                            else
+                            {
+                                foreach (var corpse in corpses)
+                                {
+                                    if (corpse == null) continue;
+                                    text += "\n" + corpse.Name;
+                                }
+                            }
+                        }
+                    }
+                }
+                else if (Cell.Explored)
+                {
+                    text = $"{Transform.position}, {(Cell != null ? Cell.State : "\"???\"")}";
+                }
+                else text = Transform.position + ", ???";
+            }
+            else
+            {
+                text = Transform.position + ", ???";
+            }
+
+            engine.DrawLabel(
+                text,
+                attached ?
+                    drawRect.position + (attached ? offset : Point.Zero) :
+                    new Point(Screens.MapDisplay.position.x + 128, Screens.FooterBar.position.y),
+                Size.One,
+                attached ?
+                    Alignment :
+                    Alignments.LowerRight,
+                Colors.White
+            );
         }
 
         public void Input()
         {
-
+            
         }
     }
 }

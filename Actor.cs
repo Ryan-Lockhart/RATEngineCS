@@ -253,7 +253,7 @@ namespace rat
                     if (WithinReach(Target.Position)) Act(Target.Position, false);
                     else
                     {
-                        Act(Target.Position - Position, true);
+                        Act(Point.Direction(Position, Target.Position), true);
 
                         //m_Path = Parent.CalculatePath(Position, Target.Position);
 
