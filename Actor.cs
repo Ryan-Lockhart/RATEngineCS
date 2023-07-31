@@ -118,7 +118,7 @@ namespace rat
         public double Accuracy { get => m_Accuracy; set => m_Accuracy = value; }
         public double Dodge { get => m_Dodge; set => m_Dodge = value; }
 
-        public Actor(ref ulong id, Cell? startingCell, string name, string description, in Glyph glyph, int reach, float health, float damage, float armor, float accuracy, float dodge, bool randomize, bool isAI = true)
+        public Actor(Cell? startingCell, string name, string description, in Glyph glyph, int reach, float health, float damage, float armor, float accuracy, float dodge, bool randomize, bool isAI = true)
         {
             if (startingCell == null) throw new ArgumentNullException(nameof(startingCell));
             else if (startingCell.Occupied) throw new ArgumentException(nameof(startingCell));
@@ -130,8 +130,7 @@ namespace rat
 
             m_Position = m_Residency.Position;
 
-            m_ID = id;
-            id++;
+            m_ID = Globals.CurrentID;
 
             m_AI = isAI;
 
@@ -153,23 +152,27 @@ namespace rat
 
             m_Accuracy = accuracy * (randomize ? Globals.Generator.NextRangeDouble(0.9, 1.1) : 1.0);
             m_Dodge = dodge * (randomize ? Globals.Generator.NextRangeDouble(0.9, 1.1) : 1.0);
+
+            Globals.Actors.Add(this);
+            Globals.Living.Add(this);
         }
 
-        public Actor(ref ulong id, Map map, string name, string description, in Glyph glyph, int reach, float health, float damage, float armor, float accuracy, float dodge, bool randomize, bool isAI = true)
+        public Actor(string name, string description, in Glyph glyph, int reach, float health, float damage, float armor, float accuracy, float dodge, bool randomize, bool isAI = true)
         {
-            m_Parent = map;
+            if (!Globals.MapExists) throw new Exception("The game map has not been initialized!");
 
-            var randomCell = map.FindOpen();
-            if (randomCell == null) throw new Exception($"{nameof(map)} has no open cells!");
-            if (randomCell.Occupied) throw new Exception($"{nameof(randomCell)} is not vacant!");
+            m_Parent = Globals.Map;
+
+            var randomCell = m_Parent.FindOpen();
+            if (randomCell == null) throw new Exception($"{nameof(Globals.Map)} has no open cells!");
+            else if (randomCell.Occupied) throw new Exception($"{nameof(randomCell)} is not vacant!");
 
             m_Residency = randomCell;
 
             m_Residency.Occupant = this;
             m_Position = m_Residency.Position;
 
-            m_ID = id;
-            id++;
+            m_ID = Globals.CurrentID;
 
             m_AI = isAI;
 
@@ -193,6 +196,9 @@ namespace rat
             m_Dodge = dodge * (randomize ? Globals.Generator.NextRangeDouble(0.9, 1.1) : 1.0);
 
             m_Path = new Stack<Point>();
+
+            Globals.Actors.Add(this);
+            Globals.Living.Add(this);
         }
 
         public virtual void Update()
@@ -303,7 +309,7 @@ namespace rat
                     Residency.Vacate();
 
                     if (Name == "Jenkins" || (Target != null && Target.Name == "Jenkins"))
-                        Globals.MessageLog.Enqueue((Name == "Jenkins" ? "\n" : "\nThe ") + m_Name + " bled out!\nIt writhes in a pool of its own blood...\n");
+                        Globals.AppendMessage((Name == "Jenkins" ? "\n" : "\nThe ") + m_Name + " bled out!\nIt writhes in a pool of its own blood...\n");
 
                     return;
                 }
@@ -350,7 +356,7 @@ namespace rat
                     Residency.AddCorpse(this);
 
                     if (Name == "Jenkins" || (Target != null && Target.Name == "Jenkins"))
-                        Globals.MessageLog.Enqueue((Name == "Jenkins" ? "\n" : "\nThe ") + m_Name + " bled out!\nIt writhes in a pool of its own blood...\n");
+                        Globals.AppendMessage((Name == "Jenkins" ? "\n" : "\nThe ") + m_Name + " bled out!\nIt writhes in a pool of its own blood...\n");
 
                     return;
                 }
@@ -476,17 +482,17 @@ namespace rat
             if (Name == "Jenkins" || what.Name == "Jenkins")
             {
                 if (randomizedAccuracy <= 0.0)
-                    Globals.MessageLog.Enqueue(Name == "Jenkins" ? "\n" : "\nThe " + Name + " misses!");
+                    Globals.AppendMessage(Name == "Jenkins" ? "\n" : "\nThe " + Name + " misses!");
                 else if (randomizedAccuracy > 0.0 && randomizedAccuracy <= 0.5)
-                    Globals.MessageLog.Enqueue(Name == "Jenkins" ? "\n" : "\nThe " + Name + " swings with reckless abandon!");
+                    Globals.AppendMessage(Name == "Jenkins" ? "\n" : "\nThe " + Name + " swings with reckless abandon!");
                 else if (randomizedAccuracy > 0.5 && randomizedAccuracy <= 1.0)
-                    Globals.MessageLog.Enqueue(Name == "Jenkins" ? "\n" : "\nThe " + Name + " swings wildly!");
+                    Globals.AppendMessage(Name == "Jenkins" ? "\n" : "\nThe " + Name + " swings wildly!");
                 else if (randomizedAccuracy > 1.0 && randomizedAccuracy <= 1.75)
-                    Globals.MessageLog.Enqueue(Name == "Jenkins" ? "\n" : "\nThe " + Name + " swings with skill!");
+                    Globals.AppendMessage(Name == "Jenkins" ? "\n" : "\nThe " + Name + " swings with skill!");
                 else if (randomizedAccuracy > 1.75 && randomizedAccuracy <= 2.5)
-                    Globals.MessageLog.Enqueue(Name == "Jenkins" ? "\n" : "\nThe " + Name + " executes an exquisite swing!");
+                    Globals.AppendMessage(Name == "Jenkins" ? "\n" : "\nThe " + Name + " executes an exquisite swing!");
                 else if (randomizedAccuracy > 2.5)
-                    Globals.MessageLog.Enqueue(Name == "Jenkins" ? "\n" : "\nThe " + Name + " unleashes a masterful swing!");
+                    Globals.AppendMessage(Name == "Jenkins" ? "\n" : "\nThe " + Name + " unleashes a masterful swing!");
             }
 
             what.Defend(this, what.Position - Position, randomizedAccuracy, randomizedDamage);
@@ -526,12 +532,12 @@ namespace rat
                         bloodParticles *= 2;
 
                         if (Name == "Jenkins" || attacker.Name == "Jenkins")
-                            Globals.MessageLog.Enqueue(crit ? (Name == "Jenkins" ? "\n" : "\nThe ") + m_Name + " was decapitated!\nIts head rolls onto the bloodied ground...\n" : Name == "Jenkins" ? "\n" : "\nThe " + m_Name + " was slain!\nIts blood stains the ground...\n");
+                            Globals.AppendMessage(crit ? (Name == "Jenkins" ? "\n" : "\nThe ") + m_Name + " was decapitated!\nIts head rolls onto the bloodied ground...\n" : Name == "Jenkins" ? "\n" : "\nThe " + m_Name + " was slain!\nIts blood stains the ground...\n");
                     }
                     else
                     {
                         if (Name == "Jenkins" || attacker.Name == "Jenkins")
-                            Globals.MessageLog.Enqueue(crit ? (Name == "Jenkins" ? "\n" + m_Name + "'s mortality has been shaken...\nAnother blow may be fatal!\n" : "\nThe " + m_Name + " suffered a terrible blow...\nIt quivers with haggard anticipation!\n") : (Name == "Jenkins" ? "\n" : "\nThe ") + m_Name + " was merely wounded...\nThe gods demand more bloodshed!\n");
+                            Globals.AppendMessage(crit ? (Name == "Jenkins" ? "\n" + m_Name + "'s mortality has been shaken...\nAnother blow may be fatal!\n" : "\nThe " + m_Name + " suffered a terrible blow...\nIt quivers with haggard anticipation!\n") : (Name == "Jenkins" ? "\n" : "\nThe ") + m_Name + " was merely wounded...\nThe gods demand more bloodshed!\n");
                     }
 
                     for (int i = 0; i < bloodParticles; i++)
@@ -552,14 +558,14 @@ namespace rat
                 else
                 {
                     if (Name == "Jenkins" || attacker.Name == "Jenkins")
-                        Globals.MessageLog.Enqueue(
+                        Globals.AppendMessage(
                             Name == "Jenkins" ? "\n" + Name + "' armor absorbed the blow...\nIts burnished surface remains stalwart!\n" : "\nThe " + Name + "'s armor absorbed the blow...\nStrike its weakpoints!\n");
                 }
             }
             else
             {
                 if (Name == "Jenkins" || attacker.Name == "Jenkins")
-                    Globals.MessageLog.Enqueue(
+                    Globals.AppendMessage(
                         (Name == "Jenkins" ? "\n" + Name + " evaded its attack..." : "\nThe " + Name + " evaded your attack...") + (Name == "Jenkins" ? "\nJenkins' confidence is bolstered!\n" : "\nIt goads you to strike again!\n"));
             }
         }
@@ -607,7 +613,7 @@ namespace rat
             else
             {
                 m_CurrentHealth -= 0.5f * displacer.Damage;
-                Globals.MessageLog.Enqueue(m_Name == "Jenkins" ? "\n" : "\nThe" + m_Name + " was shoved into a wall!\n" + m_Name == "Jenkins" ? "He suffered blunt force trauma!" : "It suffered blunt force trauma!");
+                Globals.AppendMessage(m_Name == "Jenkins" ? "\n" : "\nThe" + m_Name + " was shoved into a wall!\n" + m_Name == "Jenkins" ? "He suffered blunt force trauma!" : "It suffered blunt force trauma!");
             }
         }
 

@@ -17,14 +17,6 @@ namespace rat
         private bool m_Locked = true;
         private bool m_Exit = false;
 
-        private GlyphSet m_GameSet;
-        private GlyphSet m_UISet;
-
-        private Cursor m_Cursor;
-
-        private Actor m_Player;
-        private Map m_Map;
-
         private bool m_PlayerActed;
 
         private bool m_ShowLog;
@@ -32,17 +24,6 @@ namespace rat
 
         private bool m_ActionSelect;
         private Action m_CurrentAction;
-
-        private ulong m_CurrentID;
-
-        private List<Actor?> m_Actors;
-        private int TotalActors => m_Actors.Count;
-
-        private List<Actor?> m_Living;
-        private int TotalAlive => m_Actors.Count;
-
-        private List<Actor?> m_Dead;
-        private int TotalDead => m_Actors.Count;
 
         private DateTime m_LastInputTime;
         private DateTime m_LastUpdateTime;
@@ -55,9 +36,12 @@ namespace rat
 
         private List<ConfigFlags> m_CurrentFlags;
 
+        /*
         private Point m_PathStart;
         private Point m_PathEnd;
+
         private bool m_PathStarted;
+
         private List<Point> m_Path = new List<Point>();
 
         private bool HasPath => m_Path.Count > 0;
@@ -96,6 +80,7 @@ namespace rat
             DrawRect((m_PathStart - m_Map.Position + Screens.MapDisplay.position) * m_GameSet.GlyphSize, m_GameSet.GlyphSize, Colors.BrightGreen, Size.One, true);
             DrawRect((m_PathEnd - m_Map.Position + Screens.MapDisplay.position) * m_GameSet.GlyphSize, m_GameSet.GlyphSize, Colors.BrightRed, Size.One, true);
         }
+        */
 
         private void RecalculateFlags()
         {
@@ -138,35 +123,21 @@ namespace rat
 
             Raylib.DisableCursor();
 
-            m_GameSet = new GlyphSet(GlyphSets.DefaultMapGlyphs);
-            m_UISet = new GlyphSet(GlyphSets.DefaultUIGlyphs);
+            Globals.GameSet = new GlyphSet(GlyphSets.DefaultMapGlyphs);
+            Globals.UISet = new GlyphSet(GlyphSets.DefaultUIGlyphs);
 
-            m_Map = new Map(Settings.MapSize, Settings.BorderSize, Settings.MapGeneration.TunnelHeavy);
+            Globals.Map = new Map(Settings.MapSize, Settings.BorderSize, Settings.MapGeneration.TunnelHeavy);
 
-            m_Cursor = new Cursor(m_Map, Point.Zero, Size.One);
-
-            m_Actors = new List<Actor?>();
-            m_Living = new List<Actor?>();
-            m_Dead = new List<Actor?>();
-
-            m_Player = new Actor(ref m_CurrentID, m_Map, "Jenkins", "A spry lad clad in armor and blade", Glyphs.ASCII.Player, 1, 10.0f, 5.0f, 7.5f, 0.50f, 0.75f, false, false);
-            Globals.Player = m_Player;
-
-            m_Actors.Add(m_Player);
-            m_Living.Add(m_Player);
+            Globals.Cursor = new Cursor(Point.Zero, Size.One);
+            Globals.Player = new Actor("Jenkins", "A spry lad clad in armor and blade", Glyphs.ASCII.Player, 1, 10.0f, 5.0f, 7.5f, 0.50f, 0.75f, false, false);
 
             int totalEnemies = Globals.Generator.Next(Settings.Population.MinimumInitialEnemies, Settings.Population.MaximumInitialEnemies);
 
-            SummonEnemies(ref m_CurrentID, totalEnemies);
+            SummonEnemies(totalEnemies);
 
             while (!m_Exit)
             {
-                m_LastFrame = m_ThisFrame;
-                m_ThisFrame = DateTime.Now;
-                m_DeltaTime = m_ThisFrame - m_LastFrame;
-
-                if (m_DeltaTime.Milliseconds != 0)
-                    m_FPS = 1000 / m_DeltaTime.Milliseconds;
+                CalculateDeltaTime();
 
                 Input();
                 Update();
@@ -174,6 +145,16 @@ namespace rat
             }
             
             Raylib.CloseWindow();
+        }
+
+        public void CalculateDeltaTime()
+        {
+            m_LastFrame = m_ThisFrame;
+            m_ThisFrame = DateTime.Now;
+            m_DeltaTime = m_ThisFrame - m_LastFrame;
+
+            if (m_DeltaTime.Milliseconds != 0)
+                m_FPS = 1000 / m_DeltaTime.Milliseconds;
         }
 
         public void ToggleFullscreen()
@@ -201,14 +182,22 @@ namespace rat
         private void SetLastSummon() => m_LastSummonTime = DateTime.Now;
         private bool AllowSummon => (DateTime.Now - m_LastSummonTime).Milliseconds > Settings.MinimumSummonTime;
 
+        private int RandomSummonAmount => Globals.Generator.Next(Settings.Population.MinimumSummonEnemies, Settings.Population.MaximumSummonEnemies);
+
+        private int MaximumSummons => Settings.Population.MaximumTotalEnemies - Globals.TotalActors;
+
+        private int NextSummonCount => System.Math.Min(RandomSummonAmount, MaximumSummons);
+
         public virtual void Input()
         {
             bool heldInput = AllowInput;
 
+            /*
             if (Raylib.IsMouseButtonPressed(MouseButton.MOUSE_BUTTON_LEFT) && !m_PathStarted)
                 StartPath();
             else if (Raylib.IsMouseButtonPressed(MouseButton.MOUSE_BUTTON_LEFT) && m_PathStarted)
                 EndPath();
+            */
 
             if (m_ActionSelect)
             {
@@ -270,7 +259,7 @@ namespace rat
                 }
             }
 
-            if (m_Map == null) return;
+            if (!Globals.MapExists) return;
 
             if (Raylib.IsKeyPressed(KeyboardKey.KEY_SPACE))
             {
@@ -292,7 +281,7 @@ namespace rat
 
                     if (x_input != 0 || y_input != 0)
                     {
-                        m_Map.Move(new Point(x_input, y_input));
+                        Globals.Map.Move(new Point(x_input, y_input));
                         SetLastInput();
                         return;
                     }                    
@@ -309,33 +298,33 @@ namespace rat
             }
             else if (Raylib.IsKeyPressed(KeyboardKey.KEY_F3))
             {
-                m_Map.RevealMap();
+                Globals.Map.RevealMap();
             }
             else if (Raylib.IsKeyPressed(KeyboardKey.KEY_F4))
             {
-                m_Map.RecalculateIndices();
+                Globals.Map.RecalculateIndices();
             }
 
-            if (m_Player != null && m_Player.Alive && !m_PlayerActed)
+            if (Globals.PlayerExists && Globals.Player.Alive && !m_PlayerActed)
             {
                 m_PlayerActed = true;
 
                 if (Raylib.IsKeyPressed(KeyboardKey.KEY_Z))
                 {
-                    m_Player.Stance = Stance.Prone;
+                    Globals.Player.Stance = Stance.Prone;
                 }
                 else if (Raylib.IsKeyPressed(KeyboardKey.KEY_X))
                 {
-                    m_Player.Stance = Stance.Erect;
+                    Globals.Player.Stance = Stance.Erect;
                 }
                 else if (Raylib.IsKeyPressed(KeyboardKey.KEY_C))
                 {
-                    m_Player.Stance = Stance.Crouch;
+                    Globals.Player.Stance = Stance.Crouch;
                 }
                 else if (Raylib.IsKeyPressed(KeyboardKey.KEY_L))
                 {
-                    if (m_Cursor != null && m_Cursor.Cell != null)
-                        m_Player.Act(m_Cursor.Cell.Position, Action.LookAt, false);
+                    if (Globals.CursorExists && Globals.Cursor.Cell != null)
+                        Globals.Player.Act(Globals.Cursor.Cell.Position, Action.LookAt, false);
                 }
                 else
                 {
@@ -364,12 +353,12 @@ namespace rat
 
                         if (m_CurrentAction != Action.None)
                         {
-                            m_Player.Act(actPosition, m_CurrentAction, true);
+                            Globals.Player.Act(actPosition, m_CurrentAction, true);
                             m_CurrentAction = Action.None;
                         }
-                        else m_Player.Act(actPosition, true);
+                        else Globals.Player.Act(actPosition, true);
 
-                        if (Settings.CursorLook && m_Cursor != null && m_Cursor.Cell != null) m_Player.Act(m_Cursor.Cell.Position, Action.LookAt, false);
+                        if (Settings.CursorLook && Globals.CursorExists && Globals.Cursor.Cell != null) Globals.Player.Act(Globals.Cursor.Cell.Position, Action.LookAt, false);
 
                         SetLastInput();
                         return;
@@ -381,23 +370,23 @@ namespace rat
 
 		public virtual void Update()
         {
-            if (m_Map == null) return;
+            if (Globals.Map == null) return;
 
-            if (m_Player != null)
+            if (Globals.Player != null)
             {
-                if (m_Player.Alive)
+                if (Globals.Player.Alive)
                 {
-                    if (m_Locked && m_Map != null && m_Player != null)
-                        m_Map.CenterOn(m_Player.Position);
+                    if (m_Locked && Globals.Map != null && Globals.Player != null)
+                        Globals.Map.CenterOn(Globals.Player.Position);
 
-                    if (m_Map != null)
+                    if (Globals.Map != null)
                     {
-                        if (m_Player != null)
+                        if (Globals.Player != null)
                         {
                             double view_distance = 0.0;
                             double view_span = 0.0;
 
-                            switch (m_Player.Stance)
+                            switch (Globals.Player.Stance)
                             {
                                 case Stance.Erect:
                                     view_distance = 32.0;
@@ -413,42 +402,42 @@ namespace rat
                                     break;
                             }
 
-                            m_Map.RevealMap(m_Map.CalculateFOV(m_Player.Position, view_distance, m_Player.Angle.Degrees, view_span));
+                            Globals.Map.RevealMap(Globals.Map.CalculateFOV(Globals.Player.Position, view_distance, Globals.Player.Angle.Degrees, view_span));
                         }
                     }
                 }
-                else if (m_Player.Dead)
+                else if (Globals.Player.Dead)
                 {
                     if (AllowUpdate)
                     {
                         m_PlayerActed = true;
 
-                        m_Map.RevealMap(false);
+                        Globals.Map.RevealMap(false);
                     }
                 }
             }
 
-            if (m_Map != null && m_Cursor != null)
+            if (Globals.Map != null && Globals.CursorExists)
             {
                 if (m_ShowLog)
                 {
-                    if (m_Cursor != null && (m_Cursor.Transform.position - m_Map.Position).x < 96.0 * 0.925)
+                    if (Globals.CursorExists && (Globals.Cursor.Transform.position - Globals.Map.Position).x < 96.0 * 0.925)
                         m_ShowLog = false;
                 }
                 else
                 {
-                    if (m_Cursor != null && (m_Cursor.Transform.position - m_Map.Position).x > 96.0 * 0.975)
+                    if (Globals.CursorExists && (Globals.Cursor.Transform.position - Globals.Map.Position).x > 96.0 * 0.975)
                         m_ShowLog = true;
                 }
             }
 
-            if (m_Map != null) m_Map.Update();
+            if (Globals.Map != null) Globals.Map.Update();
 
             if (m_PlayerActed)
             {
                 CollectDead();
 
-                foreach (var living_actor in m_Living)
+                foreach (var living_actor in Globals.Living)
                     if (living_actor != null)
                         living_actor.Update();
 
@@ -458,19 +447,16 @@ namespace rat
 
                 if (AllowSummon)
                 {
-                    var summonCount = Globals.Generator.Next(Settings.Population.MinimumSummonEnemies, Settings.Population.MaximumSummonEnemies);
+                    var summonCount = NextSummonCount;
 
-                    summonCount = System.Math.Min(summonCount, Settings.Population.MaximumTotalEnemies - TotalActors);
-
-                    if (summonCount > 0) SummonEnemies(ref m_CurrentID, summonCount);
+                    if (summonCount > 0) SummonEnemies(summonCount);
                 }
             }
 
-            while (Globals.MessageLog.Count > Settings.MaxMessages)
-                Globals.MessageLog.Dequeue();
+            Globals.TrimLog();
 
-            if (m_Cursor != null)
-                m_Cursor.Update(Screens.MapDisplay.position, m_GameSet.GlyphSize);
+            if (Globals.CursorExists)
+                Globals.Cursor.Update(Screens.MapDisplay.position, Globals.GameSet.GlyphSize);
         }
 
         public virtual void Render()
@@ -478,18 +464,18 @@ namespace rat
             Raylib.BeginDrawing();
             Raylib.ClearBackground(Colors.Black);
 
-            if (m_Map != null)
+            if (Globals.Map != null)
             {
-                m_Map.Draw(m_GameSet, 0, Screens.MapDisplay.position);
+                Globals.Map.Draw(Globals.GameSet, 0, Screens.MapDisplay.position);
 
                 string text =
-                    $"{(m_Player != null ? m_Player.Name : "???")}:\n" +
-                    $"{(m_Player != null ? m_Player.Position : "???")}:\n" +
-                    $"Angle: {(m_Player != null ? m_Player.Angle : "???")}:\n" +
-                    $"Health: {(m_Player != null ? (int)System.Math.Ceiling(m_Player.CurrentHealth) : "(?.?)")}/{(m_Player != null ? (int)System.Math.Ceiling(m_Player.MaxHealth) : "(?.?)")}\n" +
-                    $"Stance: {(m_Player != null ? m_Player.Stance : "???")}\n" +
+                    $"{(Globals.Player != null ? Globals.Player.Name : "???")}:\n" +
+                    $"{(Globals.Player != null ? Globals.Player.Position : "???")}:\n" +
+                    $"Angle: {(Globals.Player != null ? Globals.Player.Angle : "???")}:\n" +
+                    $"Health: {(Globals.Player != null ? (int)System.Math.Ceiling(Globals.Player.CurrentHealth) : "(?.?)")}/{(Globals.Player != null ? (int)System.Math.Ceiling(Globals.Player.MaxHealth) : "(?.?)")}\n" +
+                    $"Stance: {(Globals.Player != null ? Globals.Player.Stance : "???")}\n" +
                     $"Camera {(m_Locked ? "Locked" : "Unlocked")}\n" +
-                    $"Camera Position: {m_Map.Position}";
+                    $"Camera Position: {Globals.Map.Position}";
 
                 DrawLabel(text, new Point(0, 3), Size.One, Alignments.UpperLeft, Colors.White);
             }
@@ -509,8 +495,8 @@ namespace rat
             }
             else DrawLabel($"Message Log: ({Globals.MessageLog.Count})", new Point(128, Screens.MessageDisplay.position.y), Size.One, Alignments.RightCentered, Colors.White);
 
-            if (m_Cursor != null)
-                m_Cursor.Draw(this, m_Map, m_GameSet);
+            if (Globals.CursorExists)
+                Globals.Cursor.Draw(this, Globals.Map, Globals.GameSet);
 
             if (m_ShowControls)
             {
@@ -548,7 +534,7 @@ namespace rat
                 DrawLabel(actions, Screens.LeftSideBar.position + new Point(0, Screens.LeftSideBar.size.height / 2), Size.One, Alignments.LeftCentered, Colors.White);
             }
 
-            DrawPath();
+            //DrawPath();
 
             Raylib.EndDrawing();
         }
@@ -639,8 +625,8 @@ namespace rat
                         carriagePosition.x = startPosition.x;
                         break;
                     default:
-                        DrawRect(carriagePosition, Size.One, Colors.Black, m_UISet.GlyphSize);
-                        m_UISet.DrawGlyph((byte)c, color, carriagePosition);
+                        DrawRect(carriagePosition, Size.One, Colors.Black, Globals.UISet.GlyphSize);
+                        Globals.UISet.DrawGlyph((byte)c, color, carriagePosition);
                         carriagePosition.x++;
                         break;
                 }
@@ -692,9 +678,9 @@ namespace rat
 
             Size labelSize = new Size(maxWidth + padding.width * 2, numLines + padding.height * 2);
 
-            DrawRect(startPosition, labelSize, Colors.Black, m_UISet.GlyphSize, true);
+            DrawRect(startPosition, labelSize, Colors.Black, Globals.UISet.GlyphSize, true);
 
-            DrawRect(startPosition, labelSize, color, m_UISet.GlyphSize, false);
+            DrawRect(startPosition, labelSize, color, Globals.UISet.GlyphSize, false);
 
             startPosition += padding;
 
@@ -719,8 +705,8 @@ namespace rat
                         carriagePosition.x = startPosition.x;
                         break;
                     default:
-                        DrawRect(carriagePosition, Size.One, Colors.Black, m_UISet.GlyphSize);
-                        m_UISet.DrawGlyph((byte)c, color, carriagePosition);
+                        DrawRect(carriagePosition, Size.One, Colors.Black, Globals.UISet.GlyphSize);
+                        Globals.UISet.DrawGlyph((byte)c, color, carriagePosition);
                         carriagePosition.x++;
                         break;
                 }
@@ -731,9 +717,9 @@ namespace rat
         {
             if (text == "") return;
 
-            DrawRect(rect, Colors.Black, m_UISet.GlyphSize, true);
+            DrawRect(rect, Colors.Black, Globals.UISet.GlyphSize, true);
 
-            DrawRect(rect, color, m_UISet.GlyphSize, false);
+            DrawRect(rect, color, Globals.UISet.GlyphSize, false);
 
             Point startPosition = rect.position;
 
@@ -795,8 +781,8 @@ namespace rat
                         carriagePosition.x = startPosition.x;
                         break;
                     default:
-                        DrawRect(carriagePosition, Size.One, Colors.Black, m_UISet.GlyphSize);
-                        m_UISet.DrawGlyph((byte)c, color, carriagePosition);
+                        DrawRect(carriagePosition, Size.One, Colors.Black, Globals.UISet.GlyphSize);
+                        Globals.UISet.DrawGlyph((byte)c, color, carriagePosition);
                         carriagePosition.x++;
                         break;
                 }
@@ -811,34 +797,34 @@ namespace rat
             List<Actor?> the_living = new List<Actor?>();
             List<Actor?> the_dead = new List<Actor?>();
 
-            foreach (var maybem_Living in m_Living)
+            foreach (var maybe_living in Globals.Living)
             {
-                if (maybem_Living == null) continue;
+                if (maybe_living == null) continue;
 
-                if (maybem_Living.Alive) the_living.Add(maybem_Living);
-                else the_dead.Add(maybem_Living);
+                if (maybe_living.Alive) the_living.Add(maybe_living);
+                else the_dead.Add(maybe_living);
             }
 
             if (Settings.AllowResurrection)
             {
                 // Check for resurrection!
-                foreach (var maybem_Dead in m_Dead)
+                foreach (var maybe_dead in Globals.Dead)
                 {
-                    if (maybem_Dead == null) continue;
+                    if (maybe_dead == null) continue;
 
-                    if (maybem_Dead.Dead) the_dead.Add(maybem_Dead);
-                    else the_living.Add(maybem_Dead);
+                    if (maybe_dead.Dead) the_dead.Add(maybe_dead);
+                    else the_living.Add(maybe_dead);
                 }
             }
 
-            m_Living = the_living;
-            m_Dead = the_dead;
+            Globals.Living = the_living;
+            Globals.Dead = the_dead;
         }
 
         /// <summary>
         /// Fetch their fetid souls from the warp!
         /// </summary>
-        public void SummonEnemies(ref ulong currentID, int amount)
+        public void SummonEnemies(int amount)
         {
             for (int i = 0; i < amount; i++)
             {
@@ -849,37 +835,32 @@ namespace rat
                 switch (next)
                 {
                     case 0:
-                        newlySpawned = new Actor(ref currentID, m_Map, "Gremlin", "A dimunitive creature with a cunning disposition", new Glyph(Characters.Entity[Cardinal.Central], Colors.BrightYellow), 1, 1.5f, 0.65f, 0.0f, 0.266f, 0.475f, true);
+                        newlySpawned = new Actor("Gremlin", "A dimunitive creature with a cunning disposition", new Glyph(Characters.Entity[Cardinal.Central], Colors.BrightYellow), 1, 1.5f, 0.65f, 0.0f, 0.266f, 0.475f, true);
                         break;
                     case 1:
-                        newlySpawned = new Actor(ref currentID, m_Map, "Goblin", "A dexterous and selfish humanoid", new Glyph(Characters.Entity[Cardinal.Central], Colors.LightGreen), 1, 3.5f, 1.25f, 0.5f, 0.375f, 0.675f, true);
+                        newlySpawned = new Actor("Goblin", "A dexterous and selfish humanoid", new Glyph(Characters.Entity[Cardinal.Central], Colors.LightGreen), 1, 3.5f, 1.25f, 0.5f, 0.375f, 0.675f, true);
                         break;
                     case 2:
-                        newlySpawned = new Actor(ref currentID, m_Map, "Ork", "A brutal and violent humanoid", new Glyph(Characters.Entity[Cardinal.Central], Colors.BrightOrange), 1, 12.5f, 3.5f, 1.25f, 0.666f, 0.275f, true);
+                        newlySpawned = new Actor("Ork", "A brutal and violent humanoid", new Glyph(Characters.Entity[Cardinal.Central], Colors.BrightOrange), 1, 12.5f, 3.5f, 1.25f, 0.666f, 0.275f, true);
                         break;
                     case 3:
-                        newlySpawned = new Actor(ref currentID, m_Map, "Troll", "A giant humaniod of great strength", new Glyph(Characters.Entity[Cardinal.Central], Colors.BrightRed), 1, 25.0f, 12.5f, 2.5f, 0.125f, 0.114f, true);
+                        newlySpawned = new Actor("Troll", "A giant humaniod of great strength", new Glyph(Characters.Entity[Cardinal.Central], Colors.BrightRed), 1, 25.0f, 12.5f, 2.5f, 0.125f, 0.114f, true);
                         break;
                     case 4:
-                        newlySpawned = new Actor(ref currentID, m_Map, "Draugr", "An undead servant of a wraith", new Glyph(Characters.Entity[Cardinal.Central], Colors.DarkMarble), 1, 7.5f, 2.5f, 5.0f, 0.675f, 0.221f, true);
+                        newlySpawned = new Actor("Draugr", "An undead servant of a wraith", new Glyph(Characters.Entity[Cardinal.Central], Colors.DarkMarble), 1, 7.5f, 2.5f, 5.0f, 0.675f, 0.221f, true);
                         break;
                     case 5:
-                        newlySpawned = new Actor(ref currentID, m_Map, "Basilisk", "A large hexapedal reptile of terrible power", new Glyph(Characters.Entity[Cardinal.Central], Colors.Intrite), 1, 17.5f, 7.5f, 3.75f, 0.425f, 0.321f, true);
+                        newlySpawned = new Actor("Basilisk", "A large hexapedal reptile of terrible power", new Glyph(Characters.Entity[Cardinal.Central], Colors.Intrite), 1, 17.5f, 7.5f, 3.75f, 0.425f, 0.321f, true);
                         break;
                     case 6:
-                        newlySpawned = new Actor(ref currentID, m_Map, "Serpentman", "A slithering humanoid with superior agility", new Glyph(Characters.Entity[Cardinal.Central], Colors.BrightBlue), 1, 17.5f, 7.5f, 3.75f, 0.425f, 0.321f, true);
+                        newlySpawned = new Actor("Serpentman", "A slithering humanoid with superior agility", new Glyph(Characters.Entity[Cardinal.Central], Colors.BrightBlue), 1, 17.5f, 7.5f, 3.75f, 0.425f, 0.321f, true);
                         break;
                     case 7:
-                        newlySpawned = new Actor(ref currentID, m_Map, "Wraith", "An eldritch abomination! Woe upon thee...", new Glyph(Characters.Entity[Cardinal.Central], Colors.BrightMagenta), 2, 125.0f, 75.0f, 30.0f, 0.75f, 0.975f, true);
+                        newlySpawned = new Actor("Wraith", "An eldritch abomination! Woe upon thee...", new Glyph(Characters.Entity[Cardinal.Central], Colors.BrightMagenta), 2, 125.0f, 75.0f, 30.0f, 0.75f, 0.975f, true);
                         break;
                 }
 
                 if (newlySpawned == null) continue;
-
-                m_Actors.Add(newlySpawned);
-                m_Living.Add(newlySpawned);
-
-                currentID++;
             }
 
             SetLastSummon();

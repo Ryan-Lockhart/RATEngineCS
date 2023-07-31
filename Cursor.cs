@@ -92,7 +92,7 @@ namespace rat
 
     public class Cursor
     {
-        private Map? m_Parent;
+        private Map m_Parent;
 
         private Cell? m_Cell;
         private Actor? m_Actor;
@@ -104,19 +104,27 @@ namespace rat
 
         private TextAlignment m_Alignment;
 
-        public Cursor(Map? parent, in Point position, in Size size)
+        public Cursor(in Point position, in Size size)
         {
-            m_Parent = parent;
+            if (!Globals.MapExists) throw new Exception("The map has not been initialized!");
+
+            m_Parent = Globals.Map;
             m_Transform = new Rect(position, size);
+
+            m_Selection = new Selection(this);
         }
 
-        public Cursor(Map? parent, in Rect transform)
+        public Cursor(in Rect transform)
         {
-            m_Parent = parent;
+            if (!Globals.MapExists) throw new Exception("The map has not been initialized!");
+
+            m_Parent = Globals.Map;
             m_Transform = transform;
+
+            m_Selection = new Selection(this);
         }
 
-        public Map? Parent => m_Parent;
+        public Map Parent => m_Parent;
 
         public Cell? Cell => m_Cell;
 
