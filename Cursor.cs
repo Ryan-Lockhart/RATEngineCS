@@ -178,14 +178,24 @@ namespace rat
                 Alignment.vertical == VerticalAlignment.Lower ? -1 : Alignment.vertical == VerticalAlignment.Upper ? 2 : 0
             );
 
-            string text;
+            string text = "";
 
             if (Cell != null)
             {
                 if (Cell.Seen)
                 {
                     if (Actor != null)
+                    {
                         text = $"{Transform.position}, {Actor.Name}\n{Actor.Description}";
+
+                        if (Actor != Globals.Player)
+                        {
+                            Relation? SeenToPlayer = Globals.Relations[Actor, Globals.Player!];
+                            string SeenToPlayerString = SeenToPlayer != null ? SeenToPlayer.ToString() : $"The {Actor.Name} does not know {Globals.Player!.Name}";
+
+                            text += $"\n\n{SeenToPlayerString}";
+                        }
+                    }
                     else text = $"{Transform.position}, {(Cell != null ? Cell.State : " ??? ")}";
 
                     var corpses = Cell!.Corpses;
@@ -198,10 +208,17 @@ namespace rat
 
                             if (Settings.UseCorpseLimit)
                             {
-                                for (int i = 0; i < corpses.Count; i++)
+                                int i = 0;
+
+                                foreach (var corpse in corpses)
                                 {
-                                    Actor? corpse = corpses[i];
-                                    if (corpse != null) { text += "\n " + corpse.Name; }
+                                    if (corpse == null || !corpse.Observed)
+                                        continue;
+
+                                    i++;
+
+                                    var actor = corpse.Actor;
+                                    if (actor != null) { text += "\n " + actor.Name; }
 
                                     if (i > Settings.CorpseLimit) break;
                                 }
@@ -213,8 +230,9 @@ namespace rat
                             {
                                 foreach (var corpse in corpses)
                                 {
-                                    if (corpse == null) continue;
-                                    text += "\n" + corpse.Name;
+                                    if (corpse == null || !corpse.Observed) continue;
+                                    var actor = corpse.Actor;
+                                    if (actor != null) { text += "\n " + actor.Name; }
                                 }
                             }
                         }
@@ -234,8 +252,8 @@ namespace rat
             engine.DrawLabel(
                 text,
                 attached ?
-                    drawRect.position + (attached ? offset : Point.Zero) :
-                    new Point(Screens.MapDisplay.position.x + 128, Screens.FooterBar.position.y),
+                    Screens.UIToMap(drawRect.position + (attached ? offset : Point.Zero)) :
+                    Screens.FixedTooltip,
                 Size.One,
                 attached ?
                     Alignment :
@@ -246,7 +264,19 @@ namespace rat
 
         public void Input()
         {
-            
+            if (Raylib.IsMouseButtonPressed(MouseButton.MOUSE_BUTTON_LEFT))
+            {
+                if (Cell != null && Cell.HasCorpses)
+                    try
+                    {
+                        foreach (var corpse in Cell.Corpses)
+                            corpse.Resurrect(true);
+                    }
+                    catch
+                    {
+                        return;
+                    }
+            }
         }
     }
 }

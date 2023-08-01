@@ -80,12 +80,22 @@ namespace rat
 
         private void ConstrainToScreen()
 		{
-            if (m_Position.x < 0)
+            var delta = Screens.MapDisplay.size - m_Size;
+
+            bool center_width = delta.width > 0;
+            bool center_height = delta.height > 0;
+
+            if (center_width)
+                m_Position.x = -delta.width / 2;
+            else if (m_Position.x < 0)
                 m_Position.x = 0;
             else if (m_Position.x > m_Size.width - Screens.MapDisplay.size.width)
                 m_Position.x = m_Size.width - Screens.MapDisplay.size.width;
 
-            if (m_Position.y < 0)
+
+            if (center_height)
+                m_Position.y = -delta.height / 2;
+            else if (m_Position.y < 0)
                 m_Position.y = 0;
             else if (m_Position.y > m_Size.height - Screens.MapDisplay.size.height)
                 m_Position.y = m_Size.height - Screens.MapDisplay.size.height;
@@ -412,6 +422,7 @@ namespace rat
                         cell.Seen = true;
                 }
 
+            m_Revealed = true;
         }
 
         public void RevealMap(in List<Point> fov, bool resetSeen = true)
@@ -445,6 +456,9 @@ namespace rat
                 for (int x = m_Position.x; x < m_Position.x + Screens.MapDisplay.size.width; x++)
                 {
                     Point currentPosition = new Point(x, y);
+
+                    if (!IsValid(currentPosition)) continue;
+
                     int index = Index(currentPosition);
 
                     if (m_Generating)

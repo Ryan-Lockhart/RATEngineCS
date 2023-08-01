@@ -339,6 +339,9 @@ namespace rat
             public static explicit operator Bounds(in Size s) => new Bounds(s.width, s.height, 0);
 
             public override string ToString() => new string($"({width}, {height})");
+
+            public static Size Max(in Size lhs, in Size rhs) => lhs.Area > rhs.Area ? lhs : rhs;
+            public static Size Min(in Size lhs, in Size rhs) => lhs.Area < rhs.Area ? lhs : rhs;
         }
 
         /// <summary>

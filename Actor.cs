@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Linq.Expressions;
 using System.Text;
 using System.Threading.Tasks;
 
@@ -163,7 +164,7 @@ namespace rat
 
             m_Parent = Globals.Map;
 
-            var randomCell = m_Parent.FindOpen();
+            var randomCell = m_Parent!.FindOpen();
             if (randomCell == null) throw new Exception($"{nameof(Globals.Map)} has no open cells!");
             else if (randomCell.Occupied) throw new Exception($"{nameof(randomCell)} is not vacant!");
 
@@ -210,85 +211,125 @@ namespace rat
 
             if (Dead || !IsAI) return;
 
-            if (m_Path != null && m_Path.Count > 0)
-                Act(m_Path.Pop(), false);
-            else
+            List<Point> fov = Parent.CalculateFOV(m_Position, 32.0, m_Heading.Degrees, 135.0);
+
+            List<Actor> allies = new List<Actor>();
+            List<Actor> foes = new List<Actor>();
+
+            Actor? closestAlly = null;
+            Actor? closestFoe = null;
+
+            double closestAllyDistance = double.MaxValue;
+            double closestFoeDistance = double.MaxValue;
+
+            foreach (var position in fov)
             {
-                if (Target == null)
+                Cell? cell = Parent[position];
+
+                if (cell == null) continue;
+
+                var actor = cell.Occupant;
+
+                if (actor == null) continue;
+                if (actor == this) continue;
+                if (actor.Dead) continue;
+
+                var relation = Globals.Relations[this, actor];
+
+                if (relation == null) continue;
+
+                double distance = (actor.Position - m_Position).Magnitude;
+
+                switch (relation.Opinion)
                 {
-                    List<Point> fov = Parent.CalculateFOV(m_Position, 32.0, m_Heading.Degrees, 135.0);
+                    case Opinion.Neutral:
+                        // Ignore
+                        break;
+                    case Opinion.Ally:
+                        allies.Add(actor);
 
-                    Actor? closestActor = null;
-                    double closestDistance = double.MaxValue;
-
-                    foreach (var position in fov)
-                    {
-                        Cell? cell = Parent[position];
-
-                        if (cell == null) continue;
-
-                        Actor? actor = cell.Occupant;
-
-                        if (actor == null) continue;
-
-                        if (actor == this || actor.Dead) continue;
-
-                        Point delta = actor.Position - m_Position;
-                        double distance = Math.Normalize(delta.x, delta.y);
-
-                        if (closestActor == null)
+                        if (closestAlly == null)
                         {
-                            closestActor = actor;
-                            closestDistance = distance;
+                            closestAlly = actor;
+                            closestAllyDistance = distance;
                         }
                         else
                         {
-                            if (closestDistance > distance)
+                            if (closestAllyDistance > distance)
                             {
-                                closestActor = actor;
-                                closestDistance = distance;
+                                closestAlly = actor;
+                                closestAllyDistance = distance;
                             }
                         }
-                    }
+                        break;
+                    case Opinion.Friend:
+                        // Ignore
+                        break;
+                    case Opinion.Rival:
+                        // Ignore
+                        break;
+                    case Opinion.Foe:
+                        foes.Add(actor);
 
-                    Target = closestActor;
+                        if (closestFoe == null)
+                        {
+                            closestFoe = actor;
+                            closestFoeDistance = distance;
+                        }
+                        else
+                        {
+                            if (closestFoeDistance > distance)
+                            {
+                                closestFoe = actor;
+                                closestFoeDistance = distance;
+                            }
+                        }
+                        break;
+                    default:
+                        break;
                 }
+            }
 
-                if (Target != null)
-                {
-                    if (WithinReach(Target.Position)) Act(Target.Position, false);
-                    else
-                    {
-                        Act(Point.Direction(Position, Target.Position), true);
+            if (closestAlly != null && closestAlly.HasTarget)
+                Target = closestAlly.Target;
+            else if (closestFoe != null)
+                Target = closestFoe;
+            else Target = null;
 
-                        //m_Path = Parent.CalculatePath(Position, Target.Position);
-
-                        //if (m_Path.Count > 0)
-                        //    Act(m_Path.Pop(), false);
-                    }
-                }
+            if (Target != null)
+            {
+                if (WithinReach(Target.Position)) Act(Target.Position, false);
                 else
                 {
-                    Coord wanderTarget = Coord.Zero;
+                    //Act(Point.Direction(Position, Target.Position), true);
 
-                    bool is_valid = false;
+                    m_Path = Parent.CalculatePath(Position, Target.Position);
 
-                    while (!is_valid)
-                    {
-                        wanderTarget = new Coord(Globals.Generator.Next(-10, 11), Globals.Generator.Next(-10, 11), 0) + m_Position;
-
-                        var cell = Parent[wanderTarget];
-                        if (cell == null) continue;
-
-                        is_valid = cell.Open;
-                    }
-
-                    m_Path = Parent.CalculatePath(m_Position, wanderTarget);
-
-                    if (HasPath && m_Path!.Count > 0)
+                    if (HasPath && m_Path.Count > 0)
                         Act(m_Path.Pop(), false);
                 }
             }
+            else if (m_Path == null || m_Path.Count <= 0)
+            {
+                Point wanderTarget = Point.Zero;
+
+                bool is_valid = false;
+
+                while (!is_valid)
+                {
+                    wanderTarget = new Point(Globals.Generator.Next(-10, 11), Globals.Generator.Next(-10, 11)) + m_Position;
+
+                    var cell = Parent[wanderTarget];
+                    if (cell == null) continue;
+
+                    is_valid = cell.Open;
+                }
+
+                m_Path = Parent.CalculatePath(m_Position, wanderTarget);
+            }
+
+            if (!HasTarget && HasPath && m_Path!.Count > 0)
+                Act(m_Path.Pop(), false);
         }
 
         public virtual void Act(in Point position, bool offset = true)
@@ -299,17 +340,11 @@ namespace rat
 
             if (m_Bleeding)
             {
-                m_CurrentHealth -= m_MaxHealth * 0.0125;
+                m_CurrentHealth -= m_MaxHealth * 0.025;
                 Residency.Bloody = true;
 
                 if (m_CurrentHealth <= 0)
                 {
-                    Dead = true;
-                    Residency.AddCorpse(this);
-                    Residency.Vacate();
-
-                    if (Name == "Jenkins" || (Target != null && Target.Name == "Jenkins"))
-                        Globals.AppendMessage((Name == "Jenkins" ? "\n" : "\nThe ") + m_Name + " bled out!\nIt writhes in a pool of its own blood...\n");
 
                     return;
                 }
@@ -352,11 +387,7 @@ namespace rat
 
                 if (m_CurrentHealth <= 0)
                 {
-                    Dead = true;
-                    Residency.AddCorpse(this);
-
-                    if (Name == "Jenkins" || (Target != null && Target.Name == "Jenkins"))
-                        Globals.AppendMessage((Name == "Jenkins" ? "\n" : "\nThe ") + m_Name + " bled out!\nIt writhes in a pool of its own blood...\n");
+                    Die(null, CauseOfDeath.Exsanguination);
 
                     return;
                 }
@@ -394,17 +425,32 @@ namespace rat
         public virtual void Draw(in GlyphSet glyphSet, in Point offset) => glyphSet.DrawGlyph(Constants.Characters.Entity[m_Heading.Direction], m_Glyph.color, m_Position - offset);
 
         public bool WithinReach(in Point position)
-        {
-            Point deltaPosition = position - Position;
-
-            return System.Math.Abs(deltaPosition.x) <= Reach && (System.Math.Abs(deltaPosition.y) <= Reach);
-        }
+            => Point.Distance(Position, position) <= Reach;
 
 		public bool WithinReach(in Cell cell)
-        {
-            Point deltaPosition = cell.Position - Position;
+            => Point.Distance(Position, cell.Position) <= Reach;
 
-            return System.Math.Abs(deltaPosition.x) <= Reach && (System.Math.Abs(deltaPosition.y) <= Reach);
+        protected virtual void Die(Actor? killer, CauseOfDeath cause)
+        {
+            Dead = true;
+            Residency.AddCorpse(this, cause);
+            Residency.Vacate();
+
+            if (Name == "Jenkins" || (killer != null && killer.Name == "Jenkins"))
+            {
+                switch (cause)
+                {
+                    case CauseOfDeath.Exsanguination:
+                        Globals.AppendMessage((Name == "Jenkins" ? "\n" : "\nThe ") + m_Name + " bled out!\nIt writhes in a pool of its own blood...\n");
+                        return;
+                    case CauseOfDeath.Decapitation:
+                        Globals.AppendMessage((Name == "Jenkins" ? "\n" : "\nThe ") + m_Name + " was decapitated!\nIts head rolls onto the bloodied ground...\n");
+                        return;
+                    default:
+                        Globals.AppendMessage((Name == "Jenkins" ? "\n" : "\nThe ") + m_Name + " was slain!\nIts blood stains the ground...\n");
+                        return;
+                }
+            }
         }
 
         protected virtual void Move(in Coord where)
@@ -468,13 +514,25 @@ namespace rat
 
             if (!WithinReach(where)) return;
 
-            Cell? cell = Parent[where];
+            var cell = Parent[where];
             if (cell == null) return;
+
+            var actor = cell.Occupant;
+
+            if (actor == null) return;
+            Attack(actor);
         }
 
 		protected virtual void Attack(Actor? what)
         {
             if (what == null) return;
+            if (what == this)
+            {
+                Target = null;
+                return;
+            }
+
+            Target = what;
 
             double randomizedAccuracy = Math.Clamp(m_Accuracy * Globals.Generator.NextRangeDouble(0.5, 1.5), 0.0, 3.0);
             double randomizedDamage = Math.Clamp(m_Accuracy * Globals.Generator.NextRangeDouble(0.75, 1.25), 0.0, double.MaxValue);
@@ -501,8 +559,10 @@ namespace rat
         protected virtual void Defend(Actor? attacker, in Point direction, double accuracy, double damage)
         {
             if (attacker == null) return;
-            if (m_Residency == null) return;
-            if (m_Parent == null) return;
+
+            Target = attacker;
+
+            Globals.Relations[this, attacker].Current -= 25;
 
             double randomizedDodge = Math.Clamp(m_Dodge * Globals.Generator.NextRangeDouble(0.15, 1.15), 0.0, 1.0);
 
@@ -525,14 +585,9 @@ namespace rat
 
                     if (m_CurrentHealth <= 0.0)
                     {
-                        m_Dead = true;
-                        m_Residency.AddCorpse(this);
-                        m_Residency.Vacate();
+                        Die(attacker, crit ? CauseOfDeath.Decapitation : CauseOfDeath.Slashed);
 
                         bloodParticles *= 2;
-
-                        if (Name == "Jenkins" || attacker.Name == "Jenkins")
-                            Globals.AppendMessage(crit ? (Name == "Jenkins" ? "\n" : "\nThe ") + m_Name + " was decapitated!\nIts head rolls onto the bloodied ground...\n" : Name == "Jenkins" ? "\n" : "\nThe " + m_Name + " was slain!\nIts blood stains the ground...\n");
                     }
                     else
                     {

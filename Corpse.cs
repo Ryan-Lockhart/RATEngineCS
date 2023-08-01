@@ -6,6 +6,44 @@ using System.Threading.Tasks;
 
 namespace rat
 {
+    public enum CauseOfDeath
+    {
+        /// <summary>
+        /// The loss of one's head
+        /// </summary>
+        Decapitation,
+
+        /// <summary>
+        /// Bleeding to death
+        /// </summary>
+        Exsanguination,
+
+        /// <summary>
+        /// Death by falling
+        /// </summary>
+        Defenestration,
+
+        /// <summary>
+        /// Blunt force death
+        /// </summary>
+        Bludgeoned,
+
+        /// <summary>
+        /// Death by overwhelming force
+        /// </summary>
+        Crushed,
+
+        /// <summary>
+        /// Stabbed to death
+        /// </summary>
+        Skewered,
+
+        /// <summary>
+        /// Death by cuts
+        /// </summary>
+        Slashed,
+    }
+
     public class Corpse
     {
         /// <summary>
@@ -20,7 +58,11 @@ namespace rat
         /// <summary>
         /// The time at which this corpse was created
         /// </summary>
-        private DateTime m_TimeOfDeath;
+        private int m_TimeOfDeath;
+        /// <summary>
+        /// The time at which this corpse will be decayed
+        /// </summary>
+        private int m_TimeOfDecay;
 
         /// <summary>
         /// Has the controlled actor seen this corpse after it died?
@@ -31,48 +73,37 @@ namespace rat
         /// </summary>
         private bool m_Resurrectable;
 
-        /// <summary>
-        /// The amount of decay this corpse has built up
-        /// </summary>
-        private double m_Decay;
-
-        public Actor? Actor { get => m_Actor; set => m_Actor = value; }
-        public Cell? PlaceOfDeath { get => m_PlaceOfDeath; set => m_PlaceOfDeath = value; }
-        public DateTime TimeOfDeath { get => m_TimeOfDeath; set => m_TimeOfDeath = value; }
+        public Actor? Actor { get => m_Actor; }
+        public Cell? PlaceOfDeath { get => m_PlaceOfDeath; }
+        public int TimeOfDeath { get => m_TimeOfDeath; }
         public bool Observed { get => m_Observed; set => m_Observed = value; }
-        public bool Resurrectable { get => m_Resurrectable; set => m_Resurrectable = value; }
-        public double Decay { get => m_Decay; set => m_Decay = value; }
+        public bool Resurrectable { get => m_Resurrectable && Globals.CurrentTurn < m_TimeOfDecay; }
 
-        public Corpse(Actor? actor, bool ressurectable = false)
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="actor">The actor which has died</param>
+        /// <param name="ressurectable">Is it possible to raise this corpse from the dead?</param>
+        /// <param name="decayTime">The amount of time in turns it takes for this corpse to fully decay</param>
+        /// <exception cref="ArgumentNullException"></exception>
+        public Corpse(Actor? actor, bool ressurectable = false, int decayTime = 10)
         {
             if (actor == null) throw new ArgumentNullException(nameof(actor));
 
             m_Actor = actor;
             m_PlaceOfDeath = actor.Residency;
-            m_TimeOfDeath = DateTime.Now;
+            m_TimeOfDeath = Globals.CurrentTurn;
             m_Observed = false;
             m_Resurrectable = ressurectable;
-            m_Decay = 1.0;
+            m_TimeOfDecay = m_TimeOfDeath + decayTime;
         }
 
         /// <summary>
         /// Resurrect this corpse at the place of its death
         /// </summary>
         /// <returns>Whether or not the resurrection was successful</returns>
-        public bool Resurrect()
-        {
-            if (Actor == null) return false;
-            if (PlaceOfDeath == null) return false;
-
-            if (!Resurrectable) return false;
-
-            if (PlaceOfDeath.Occupied) return false;
-
-            Actor.CurrentHealth = Actor.MaxHealth * Decay;
-            Actor.Dead = false;
-
-            return true;
-        }
+        public bool Resurrect(bool force = false)
+            => Resurrect(PlaceOfDeath, false, force);
 
         /// <summary>
         /// Resurrect this corpse in a specified cell
@@ -80,12 +111,12 @@ namespace rat
         /// <param name="cell">The cell at which the corpse will be resurrected</param>
         /// <param name="allowFallback">If the specified resurrection site is occupied, allow the corpse to be resurrected normally?</param>
         /// <returns>The outcome of the resurrection</returns>
-        public bool Resurrect(Cell? cell, bool allowFallback = false)
+        public bool Resurrect(Cell? cell, bool allowFallback = false, bool force = false)
         {
             if (Actor == null) return false;
             if (cell == null) return false;
 
-            if (!Resurrectable) return false;
+            if (!Resurrectable && !force) return false;
 
             if (cell.Occupied)
             {
@@ -93,9 +124,13 @@ namespace rat
                     return false;
             }
             else Actor.Residency = cell;
-
-            Actor.CurrentHealth = Actor.MaxHealth * Decay;
+            
+            Actor.Residency.Occupant = Actor;
+            Actor.CurrentHealth = Actor.MaxHealth;
+            Actor.Name = $"Undead {Actor.Name}";
             Actor.Dead = false;
+
+            Actor.Residency.Corpses.Remove(this);
 
             return true;
         }

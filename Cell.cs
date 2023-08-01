@@ -47,7 +47,7 @@ namespace rat
         private Map m_Parent;
         private Actor? m_Occupant;
 
-        private List<Actor> m_Corpses;
+        private List<Corpse> m_Corpses;
         private List<Cell?> m_Neighbours;
 
         private int m_Index;
@@ -69,7 +69,7 @@ namespace rat
         public bool Vacant => Occupant == null;
         public bool Occupied => Occupant != null;
 
-        public List<Actor> Corpses { get => m_Corpses; set => m_Corpses = value; }
+        public List<Corpse> Corpses { get => m_Corpses; set => m_Corpses = value; }
 
         public List<Cell?> Neighbours { get => m_Neighbours; set => m_Neighbours = value; }
 
@@ -112,6 +112,20 @@ namespace rat
 
         public bool Bloody { get => m_Bloody; set => m_Bloody = value; }
         public bool Unbloodied => !Bloody;
+
+        public bool HasCorpses => m_Corpses.Count > 0;
+
+        public bool CorpsesSeen
+        {
+            get
+            {
+                foreach (var corpse in m_Corpses)
+                    if (corpse != null && corpse.Observed)
+                        return true;
+
+                return false;
+            }
+        }
 
         public bool Seen { get => m_Seen; set => m_Seen = value; }
         public bool Unseen => !Seen;
@@ -190,7 +204,7 @@ namespace rat
             m_Solid = solid;
             m_Opaque = opaque;
 
-            m_Corpses = new List<Actor>();
+            m_Corpses = new List<Corpse>();
             m_Neighbours = new List<Cell?>(8);
 		}
 
@@ -231,12 +245,24 @@ namespace rat
             else return false;
         }
 
-        public void AddCorpse(Actor? what)
+        public void AddCorpse(Actor? what, CauseOfDeath cause)
         {
             if (what == null) return;
             if (what.Alive) return;
 
-            Corpses.Add(what);
+            var (resurrectable, turns) = cause switch
+            {
+                CauseOfDeath.Decapitation => (false, 0),
+                CauseOfDeath.Exsanguination => (true, 5),
+                CauseOfDeath.Defenestration => (true, 10),
+                CauseOfDeath.Bludgeoned => (true, 10),
+                CauseOfDeath.Crushed => (false, 0),
+                CauseOfDeath.Skewered => (true, 5),
+                CauseOfDeath.Slashed => (true, 5),
+                _ => (false, 0)
+            };
+
+            Corpses.Add(new Corpse(what, resurrectable, turns));
         }
 
         public void ClearCorpses() => m_Corpses.Clear();
@@ -264,7 +290,7 @@ namespace rat
             if (Occupied && drawOccupant && Seen)
                 Occupant!.Draw(glyphSet, screenPosition);
             else if (Vacant && Seen)
-                if (m_Corpses.Count > 0)
+                if (HasCorpses && CorpsesSeen)
                     glyphSet.DrawGlyph(new Glyph(Constants.Characters.Corpse, Constants.Colors.White), drawPosition);
         }
 

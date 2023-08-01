@@ -135,6 +135,8 @@ namespace rat
 
             SummonEnemies(totalEnemies);
 
+            Globals.Relations = new RelationMatrix(Globals.Actors);
+
             while (!m_Exit)
             {
                 CalculateDeltaTime();
@@ -191,6 +193,8 @@ namespace rat
         public virtual void Input()
         {
             bool heldInput = AllowInput;
+
+            Globals.Cursor!.Input();
 
             /*
             if (Raylib.IsMouseButtonPressed(MouseButton.MOUSE_BUTTON_LEFT) && !m_PathStarted)
@@ -281,7 +285,7 @@ namespace rat
 
                     if (x_input != 0 || y_input != 0)
                     {
-                        Globals.Map.Move(new Point(x_input, y_input));
+                        Globals.Map!.Move(new Point(x_input, y_input));
                         SetLastInput();
                         return;
                     }                    
@@ -298,14 +302,14 @@ namespace rat
             }
             else if (Raylib.IsKeyPressed(KeyboardKey.KEY_F3))
             {
-                Globals.Map.RevealMap();
+                Globals.Map!.RevealMap();
             }
             else if (Raylib.IsKeyPressed(KeyboardKey.KEY_F4))
             {
-                Globals.Map.RecalculateIndices();
+                Globals.Map!.RecalculateIndices();
             }
 
-            if (Globals.PlayerExists && Globals.Player.Alive && !m_PlayerActed)
+            if (Globals.PlayerExists && Globals.Player!.Alive && !m_PlayerActed)
             {
                 m_PlayerActed = true;
 
@@ -323,45 +327,46 @@ namespace rat
                 }
                 else if (Raylib.IsKeyPressed(KeyboardKey.KEY_L))
                 {
-                    if (Globals.CursorExists && Globals.Cursor.Cell != null)
+                    if (Globals.CursorExists && Globals.Cursor!.Cell != null)
                         Globals.Player.Act(Globals.Cursor.Cell.Position, Action.LookAt, false);
                 }
                 else
                 {
-                    int x_input = 0;
-                    int y_input = 0;
-
                     if (heldInput)
                     {
+                        int x_input = 0;
+                        int y_input = 0;
+
                         if (Raylib.IsKeyDown(KeyboardKey.KEY_D) || Raylib.IsKeyDown(KeyboardKey.KEY_KP_6) || Raylib.IsKeyDown(KeyboardKey.KEY_KP_3) || Raylib.IsKeyDown(KeyboardKey.KEY_KP_9)) { x_input = 1; }
                         else if (Raylib.IsKeyDown(KeyboardKey.KEY_A) || Raylib.IsKeyDown(KeyboardKey.KEY_KP_4) || Raylib.IsKeyDown(KeyboardKey.KEY_KP_7) || Raylib.IsKeyDown(KeyboardKey.KEY_KP_1)) { x_input = -1; }
 
                         if (Raylib.IsKeyDown(KeyboardKey.KEY_S) || Raylib.IsKeyDown(KeyboardKey.KEY_KP_2) || Raylib.IsKeyDown(KeyboardKey.KEY_KP_3) || Raylib.IsKeyDown(KeyboardKey.KEY_KP_1)) { y_input = 1; }
                         else if (Raylib.IsKeyDown(KeyboardKey.KEY_W) || Raylib.IsKeyDown(KeyboardKey.KEY_KP_8) || Raylib.IsKeyDown(KeyboardKey.KEY_KP_9) || Raylib.IsKeyDown(KeyboardKey.KEY_KP_7)) { y_input = -1; }
-                    }
 
-                    if (Raylib.IsKeyDown(KeyboardKey.KEY_KP_5))
-                    {
-                        m_CurrentAction = Action.None;
-
-                        SetLastInput();
-                        return;
-                    }
-                    else if (x_input != 0 || y_input != 0)
-                    {
-                        Coord actPosition = new Coord(x_input, y_input, 0);
-
-                        if (m_CurrentAction != Action.None)
+                        if (Raylib.IsKeyDown(KeyboardKey.KEY_KP_5))
                         {
-                            Globals.Player.Act(actPosition, m_CurrentAction, true);
                             m_CurrentAction = Action.None;
+
+                            SetLastInput();
+                            return;
                         }
-                        else Globals.Player.Act(actPosition, true);
+                        else if (x_input != 0 || y_input != 0)
+                        {
+                            Coord actPosition = new Coord(x_input, y_input, 0);
 
-                        if (Settings.CursorLook && Globals.CursorExists && Globals.Cursor.Cell != null) Globals.Player.Act(Globals.Cursor.Cell.Position, Action.LookAt, false);
+                            if (m_CurrentAction != Action.None)
+                            {
+                                Globals.Player.Act(actPosition, m_CurrentAction, true);
+                                m_CurrentAction = Action.None;
+                            }
+                            else Globals.Player.Act(actPosition, true);
 
-                        SetLastInput();
-                        return;
+                            if (Settings.CursorLook && Globals.CursorExists && Globals.Cursor.Cell != null) Globals.Player.Act(Globals.Cursor.Cell.Position, Action.LookAt, false);
+
+                            SetLastInput();
+                            return;
+                        }
+                        else m_PlayerActed = false;
                     }
                     else m_PlayerActed = false;
                 }
@@ -376,35 +381,41 @@ namespace rat
             {
                 if (Globals.Player.Alive)
                 {
-                    if (m_Locked && Globals.Map != null && Globals.Player != null)
+                    if (m_Locked)
                         Globals.Map.CenterOn(Globals.Player.Position);
 
-                    if (Globals.Map != null)
+                    double view_distance = 0.0;
+                    double view_span = 0.0;
+
+                    switch (Globals.Player.Stance)
                     {
-                        if (Globals.Player != null)
-                        {
-                            double view_distance = 0.0;
-                            double view_span = 0.0;
-
-                            switch (Globals.Player.Stance)
-                            {
-                                case Stance.Erect:
-                                    view_distance = 32.0;
-                                    view_span = 135.0;
-                                    break;
-                                case Stance.Crouch:
-                                    view_distance = 16.0;
-                                    view_span = 150.0;
-                                    break;
-                                case Stance.Prone:
-                                    view_distance = 48.0;
-                                    view_span = 33.75;
-                                    break;
-                            }
-
-                            Globals.Map.RevealMap(Globals.Map.CalculateFOV(Globals.Player.Position, view_distance, Globals.Player.Angle.Degrees, view_span));
-                        }
+                        case Stance.Erect:
+                            view_distance = 32.0;
+                            view_span = 135.0;
+                            break;
+                        case Stance.Crouch:
+                            view_distance = 16.0;
+                            view_span = 150.0;
+                            break;
+                        case Stance.Prone:
+                            view_distance = 48.0;
+                            view_span = 33.75;
+                            break;
                     }
+
+                    var fov = Globals.Map.CalculateFOV(Globals.Player.Position, view_distance, Globals.Player.Angle.Degrees, view_span);
+
+                    foreach (var pos in fov)
+                    {
+                        var cell = Globals.Map[pos];
+                        if (cell == null) continue;
+                        
+                        foreach (var corpse in cell.Corpses)
+                            if (corpse != null)
+                                corpse.Observed = true;
+                    }
+
+                    Globals.Map.RevealMap(fov);
                 }
                 else if (Globals.Player.Dead)
                 {
@@ -421,12 +432,12 @@ namespace rat
             {
                 if (m_ShowLog)
                 {
-                    if (Globals.CursorExists && (Globals.Cursor.Transform.position - Globals.Map.Position).x < 96.0 * 0.925)
+                    if (Globals.CursorExists && (Globals.Cursor!.Transform.position - Globals.Map.Position).x < (Screens.ScreenScale * 96.0) * 0.95)
                         m_ShowLog = false;
                 }
                 else
                 {
-                    if (Globals.CursorExists && (Globals.Cursor.Transform.position - Globals.Map.Position).x > 96.0 * 0.975)
+                    if (Globals.CursorExists && (Globals.Cursor!.Transform.position - Globals.Map.Position).x > (Screens.ScreenScale * 96.0) * 0.95)
                         m_ShowLog = true;
                 }
             }
@@ -445,6 +456,8 @@ namespace rat
 
                 SetLastUpdate();
 
+                Globals.CurrentTurn++;
+
                 if (AllowSummon)
                 {
                     var summonCount = NextSummonCount;
@@ -456,7 +469,7 @@ namespace rat
             Globals.TrimLog();
 
             if (Globals.CursorExists)
-                Globals.Cursor.Update(Screens.MapDisplay.position, Globals.GameSet.GlyphSize);
+                Globals.Cursor!.Update(Screens.MapDisplay.position, Globals.GameSet!.GlyphSize);
         }
 
         public virtual void Render()
@@ -466,18 +479,16 @@ namespace rat
 
             if (Globals.Map != null)
             {
-                Globals.Map.Draw(Globals.GameSet, 0, Screens.MapDisplay.position);
+                Globals.Map.Draw(Globals.GameSet!, 0, Screens.MapDisplay.position);
 
                 string text =
                     $"{(Globals.Player != null ? Globals.Player.Name : "???")}:\n" +
                     $"{(Globals.Player != null ? Globals.Player.Position : "???")}:\n" +
-                    $"Angle: {(Globals.Player != null ? Globals.Player.Angle : "???")}:\n" +
                     $"Health: {(Globals.Player != null ? (int)System.Math.Ceiling(Globals.Player.CurrentHealth) : "(?.?)")}/{(Globals.Player != null ? (int)System.Math.Ceiling(Globals.Player.MaxHealth) : "(?.?)")}\n" +
                     $"Stance: {(Globals.Player != null ? Globals.Player.Stance : "???")}\n" +
-                    $"Camera {(m_Locked ? "Locked" : "Unlocked")}\n" +
-                    $"Camera Position: {Globals.Map.Position}";
+                    $"Camera {(m_Locked ? "Locked" : "Unlocked")}";
 
-                DrawLabel(text, new Point(0, 3), Size.One, Alignments.UpperLeft, Colors.White);
+                DrawLabel(text, Screens.InfoToolip, Size.One, Alignments.UpperLeft, Colors.White);
             }
 
             DrawLabel($"FPS: {m_FPS}", Screens.FooterBar.position, Size.One, Alignments.LowerLeft, Colors.White);
@@ -493,10 +504,10 @@ namespace rat
 
                 DrawFixedLabel(messages, Screens.MessageDisplay, Size.One, Alignments.UpperCentered, Colors.White);
             }
-            else DrawLabel($"Message Log: ({Globals.MessageLog.Count})", new Point(128, Screens.MessageDisplay.position.y), Size.One, Alignments.RightCentered, Colors.White);
+            else DrawLabel($"Message Log: ({Globals.MessageLog.Count})", Screens.LogTooltip, Size.One, Alignments.RightCentered, Colors.White);
 
             if (Globals.CursorExists)
-                Globals.Cursor.Draw(this, Globals.Map, Globals.GameSet);
+                Globals.Cursor!.Draw(this, Globals.Map!, Globals.GameSet!);
 
             if (m_ShowControls)
             {
@@ -625,7 +636,7 @@ namespace rat
                         carriagePosition.x = startPosition.x;
                         break;
                     default:
-                        DrawRect(carriagePosition, Size.One, Colors.Black, Globals.UISet.GlyphSize);
+                        DrawRect(carriagePosition, Size.One, Colors.Black, Globals.UISet!.GlyphSize);
                         Globals.UISet.DrawGlyph((byte)c, color, carriagePosition);
                         carriagePosition.x++;
                         break;
@@ -678,9 +689,9 @@ namespace rat
 
             Size labelSize = new Size(maxWidth + padding.width * 2, numLines + padding.height * 2);
 
-            DrawRect(startPosition, labelSize, Colors.Black, Globals.UISet.GlyphSize, true);
+            DrawRect(startPosition, labelSize, Colors.Black, Globals.UISet!.GlyphSize, true);
 
-            DrawRect(startPosition, labelSize, color, Globals.UISet.GlyphSize, false);
+            DrawRect(startPosition, labelSize, color, Globals.UISet!.GlyphSize, false);
 
             startPosition += padding;
 
@@ -717,7 +728,7 @@ namespace rat
         {
             if (text == "") return;
 
-            DrawRect(rect, Colors.Black, Globals.UISet.GlyphSize, true);
+            DrawRect(rect, Colors.Black, Globals.UISet!.GlyphSize, true);
 
             DrawRect(rect, color, Globals.UISet.GlyphSize, false);
 
@@ -794,8 +805,8 @@ namespace rat
         /// </summary>
         public void CollectDead()
         {
-            List<Actor?> the_living = new List<Actor?>();
-            List<Actor?> the_dead = new List<Actor?>();
+            List<Actor> the_living = new List<Actor>();
+            List<Actor> the_dead = new List<Actor>();
 
             foreach (var maybe_living in Globals.Living)
             {

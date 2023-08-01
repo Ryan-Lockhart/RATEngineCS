@@ -39,14 +39,14 @@ namespace rat
 
     public class Relation
     {
-        private ulong m_Origin;
-        private ulong m_Target;
+        private readonly Actor m_Origin;
+        private readonly Actor m_Target;
 
-        private int m_Maximum;
+        private readonly int m_Maximum;
         private int m_Current;
-        private int m_Minimum;
+        private readonly int m_Minimum;
 
-        public Relation(ulong origin, ulong target, int current = 0, int maximum = 100, int minimum = -100)
+        public Relation(in Actor origin, in Actor target, int current = 0, int maximum = 100, int minimum = -100)
         {
             m_Origin = origin;
             m_Target = target;
@@ -56,12 +56,12 @@ namespace rat
             m_Minimum = minimum;
         }
 
-        public ulong Origin { get => m_Origin; set => m_Origin = value; }
-        public ulong Target { get => m_Target; set => m_Target = value; }
+        public Actor Origin { get => m_Origin; }
+        public Actor Target { get => m_Target; }
 
-        public int Maximum { get => m_Maximum; set => m_Maximum = value; }
-        public int Current { get => m_Current; set => m_Current = value; }
-        public int Minimum { get => m_Minimum; set => m_Minimum = value; }
+        public int Maximum { get => m_Maximum; }
+        public int Current { get => m_Current; set => m_Current = System.Math.Clamp(value, Minimum, Maximum); }
+        public int Minimum { get => m_Minimum; }
 
         private int FriendThreshold => Maximum / 3;
         private int AllyThreshold => FriendThreshold * 2;
@@ -73,13 +73,16 @@ namespace rat
         {
             get
             {
-                if (Current >= AllyThreshold) return Opinion.Ally;
+                if (Current >= AllyThreshold)return Opinion.Ally;
                 else if (Current >= FriendThreshold) return Opinion.Friend;
                 else if (Current <= FoeThreshold) return Opinion.Foe;
                 else if (Current <= RivalThreshold) return Opinion.Rival;
                 else return Opinion.Neutral;
             }
         }
+
+        public override string ToString()
+            => $"{m_Origin.Name} views {m_Target.Name} as a {Opinion}";
     }
 
     public class RelationMatrix
@@ -96,7 +99,15 @@ namespace rat
             m_Relations = new Dictionary<ulong, Dictionary<ulong, Relation>>(actors.Count);
 
             AddActors(actors);
+
+            foreach (var origin in actors)
+                foreach (var target in actors)
+                    if (target != origin)
+                        AddRelation(origin, target, -100);
         }
+
+        public Relation this[in Actor origin, in Actor target]
+            => m_Relations[origin.ID][target.ID];
 
         public void AddActor(in Actor actor)
             => m_Relations.Add(actor.ID, new Dictionary<ulong, Relation>());
@@ -107,13 +118,26 @@ namespace rat
                 AddActor(actor);
         }
 
-        public void AddRelation(in Actor origin, in Actor target)
-            => m_Relations[origin.ID].Add(target.ID, new Relation(origin.ID, target.ID));
+        public void AddRelation(in Actor origin, in Actor target, bool generate = true)
+        {
+            if (!Acquainted(origin, target))
+                m_Relations[origin.ID].Add(target.ID, new Relation(origin, target, generate ? Globals.Generator.Next(-100, 101) : 0));
+        }
 
-        public void AddRelation(in Actor origin, in Actor target, int current, int maximum, int minimum)
-            => m_Relations[origin.ID].Add(target.ID, new Relation(origin.ID, target.ID, current, maximum, minimum));
+        public void AddRelation(in Actor origin, in Actor target, int current, int maximum = 100, int minimum = -100)
+        {
+            if (!Acquainted(origin, target))
+                m_Relations[origin.ID].Add(target.ID, new Relation(origin, target, current, maximum, minimum));
+        }
 
         public void SetRelation(in Actor origin, in Actor target, int value)
-            => m_Relations[origin.ID][target.ID].Current = value;
+        {
+            if (Acquainted(origin, target))
+                m_Relations[origin.ID][target.ID].Current = value;
+            else AddRelation(origin, target, value);
+        }
+
+        public bool Acquainted(in Actor origin, in Actor target)
+            => m_Relations.ContainsKey(origin.ID) ? m_Relations[origin.ID].ContainsKey(target.ID) : false;
     }
 }

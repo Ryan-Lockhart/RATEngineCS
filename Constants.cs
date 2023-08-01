@@ -37,8 +37,8 @@ namespace rat
             public static readonly string EngineVersion = "v0.001";
             public static readonly string EngineDate = "07/17/2023";
 
-            public static readonly Size MapSize = new Size(128, 128);
-            public static readonly Size BorderSize = MapSize * 0.025;
+            public static readonly Size MapSize = new Size(32, 32);
+            public static readonly Size BorderSize = Size.Max(MapSize * 0.025, Size.One);
 
             public static class MapGeneration
             {
@@ -88,8 +88,8 @@ namespace rat
                 /// </summary>
                 public static readonly int MaximumEnemyTypes = 6;
 
-                public static readonly int MinimumInitialEnemies = 10;
-                public static readonly int MaximumInitialEnemies = 50;
+                public static readonly int MinimumInitialEnemies = 5;
+                public static readonly int MaximumInitialEnemies = 10;
 
                 public static readonly float EnemyPopulationFactor = 5.0f;
 
@@ -126,35 +126,41 @@ namespace rat
 
         public class Screens
         {
+            public static readonly double ScreenScale = 1.5;
+
             /// <summary>
             /// Title Bar size in UI coordinate system
             /// </summary>
-            public static readonly Rect TitleBar = new Rect(new Point(0, 0), new Size(128, 3));
+            public static readonly Rect TitleBar = new Rect(new Point((int)(0 * ScreenScale), (int)(0 * ScreenScale)), new Size((int)(128 * ScreenScale), (int)(3 * ScreenScale)));
 
             /// <summary>
             /// Footer Bar size in Map coordinate system
             /// </summary>
-            public static readonly Rect MapDisplay = new Rect(new Point(0, 3), new Size(96, 42));
+            public static readonly Rect MapDisplay = new Rect(new Point((int)(0 * ScreenScale), (int)(3 * ScreenScale)), new Size((int)(96 * ScreenScale), (int)(42 * ScreenScale)));
 
             /// <summary>
             /// Footer Bar size in UI coordinate system
             /// </summary>
-            public static readonly Rect MessageDisplay = new Rect(new Point(80, 8), new Size(48, 48));
+            public static readonly Rect MessageDisplay = new Rect(new Point((int)(80 * ScreenScale), (int)(8 * ScreenScale)), new Size((int)(48 * ScreenScale), (int)(48 * ScreenScale)));
 
             /// <summary>
             /// Footer Bar size in UI coordinate system
             /// </summary>
-            public static readonly Rect LeftSideBar = new Rect(new Point(0, 3), new Size(3, 64));
+            public static readonly Rect LeftSideBar = new Rect(new Point((int)(0 * ScreenScale), (int)(3 * ScreenScale)), new Size((int)(3 * ScreenScale), (int)(64 * ScreenScale)));
 
             /// <summary>
             /// Footer Bar size in UI coordinate system
             /// </summary>
-            public static readonly Rect FooterBar = new Rect(new Point(0, 64), new Size(128, 3));
+            public static readonly Rect FooterBar = new Rect(new Point((int)(0 * ScreenScale), (int)(64 * ScreenScale)), new Size((int)(128 * ScreenScale), (int)(3 * ScreenScale)));
+
+            public static readonly Point LogTooltip = new Point((int)(128 * ScreenScale), (int)(8 * ScreenScale));
+            public static readonly Point InfoToolip = new Point((int)(0 * ScreenScale), (int)(3 * ScreenScale));
+            public static readonly Point FixedTooltip = new Point((int)(128 * ScreenScale), (int)(64 * ScreenScale));
 
             /// <summary>
             /// Window size in Map coordinate system
             /// </summary>
-            public static readonly Size WindowSize = new Size(96, 48);
+            public static readonly Size WindowSize = new Size((int)(96 * ScreenScale), (int)(48 * ScreenScale));
 
             private static readonly double _UIToMap = 16.0 / 12.0;
             private static readonly double _MapToUI = 12.0 / 16.0;

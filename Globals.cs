@@ -46,19 +46,23 @@ namespace rat
 
         public static ulong CurrentID => m_CurrentID++;
 
-        public static List<Actor?> Actors = new List<Actor?>();
+        public static List<Actor> Actors = new List<Actor>();
         public static int TotalActors => Actors.Count;
 
-        public static List<Actor?> Living = new List<Actor?>();
+        public static List<Actor> Living = new List<Actor>();
         public static int TotalAlive => Living.Count;
         public static bool AliveMajority => TotalAlive > TotalDead;
 
 
-        public static List<Actor?> Dead = new List<Actor?>();
+        public static List<Actor> Dead = new List<Actor>();
         public static int TotalDead => Dead.Count;
         public static bool DeadMajority => TotalDead > TotalAlive;
 
         public static bool PopulationSynced => TotalActors == TotalAlive + TotalDead;
         public static bool PopulationDesynced => !PopulationSynced;
+
+        public static RelationMatrix Relations;
+
+        public static int CurrentTurn;
     }
 }
