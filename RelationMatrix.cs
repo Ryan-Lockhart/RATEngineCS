@@ -103,7 +103,7 @@ namespace rat
             foreach (var origin in actors)
                 foreach (var target in actors)
                     if (target != origin)
-                        AddRelation(origin, target, -100);
+                        AddRelation(origin, target);
         }
 
         public Relation this[in Actor origin, in Actor target]
@@ -120,19 +120,19 @@ namespace rat
 
         public void AddRelation(in Actor origin, in Actor target, bool generate = true)
         {
-            if (!Acquainted(origin, target))
+            if (!Acquainted(origin, target) && origin != target)
                 m_Relations[origin.ID].Add(target.ID, new Relation(origin, target, generate ? Globals.Generator.Next(-100, 101) : 0));
         }
 
         public void AddRelation(in Actor origin, in Actor target, int current, int maximum = 100, int minimum = -100)
         {
-            if (!Acquainted(origin, target))
+            if (!Acquainted(origin, target) && origin != target)
                 m_Relations[origin.ID].Add(target.ID, new Relation(origin, target, current, maximum, minimum));
         }
 
         public void SetRelation(in Actor origin, in Actor target, int value)
         {
-            if (Acquainted(origin, target))
+            if (Acquainted(origin, target) && origin != target)
                 m_Relations[origin.ID][target.ID].Current = value;
             else AddRelation(origin, target, value);
         }

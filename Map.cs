@@ -36,6 +36,8 @@ namespace rat
 		private BitArray m_Solids;
 		private Cell[] m_Cells;
 
+        public List<Cell> Cells => m_Cells.ToList();
+
 		private Point m_Position;
 
 		private Size m_Size;
@@ -339,6 +341,18 @@ namespace rat
             m_Generating = false;
         }
 
+        public void CloseHoles()
+        {
+            var partitioner = new Partitioner(this);
+
+            var largestArea = partitioner.LargestArea;
+
+            foreach (var area in partitioner.Areas)
+                if (area != largestArea)
+                    foreach (var cell in area.Cells)
+                        cell.Solid = true;
+        }
+
         public void Regenerate(float fillPercent = 0.5f, int iterations = 5, int threshold = 4)
 		{
             Generate(fillPercent);
@@ -450,7 +464,7 @@ namespace rat
             ConstrainToScreen();
         }
 
-        public void Draw(in GlyphSet glyphSet, int drawDepth, in Point offset)
+        public void Draw(in GlyphSet glyphSet, in Point offset)
 		{
             for (int y = m_Position.y; y < m_Position.y + Screens.MapDisplay.size.height; y++)
                 for (int x = m_Position.x; x < m_Position.x + Screens.MapDisplay.size.width; x++)
@@ -462,14 +476,14 @@ namespace rat
                     int index = Index(currentPosition);
 
                     if (m_Generating)
-                        glyphSet.DrawGlyph(m_Solids[index] ? Glyphs.ASCII.Wall : Glyphs.ASCII.Floor, m_Position - currentPosition + offset);
+                        glyphSet.DrawGlyph(m_Solids[index] ? Glyphs.ASCII.Wall : Glyphs.ASCII.Floor, Position + currentPosition - offset);
                     else
                     {
                         Cell? cell = this[currentPosition];
 
                         if (cell != null)
                             cell.Draw(glyphSet, m_Position - offset, true);
-                        else glyphSet.DrawGlyph(m_Solids[index] ? Glyphs.ASCII.Wall : Glyphs.ASCII.Floor, m_Position - currentPosition + offset);
+                        else glyphSet.DrawGlyph(m_Solids[index] ? Glyphs.ASCII.Wall : Glyphs.ASCII.Floor, Position + currentPosition - offset);
                     }
                 }
         }

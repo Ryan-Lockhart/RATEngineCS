@@ -34,6 +34,7 @@ namespace rat
 
         private List<Cell?> m_Cells;
         private List<Actor?> m_Actors;
+
         public Cursor Cursor { get => m_Cursor; set => m_Cursor = value; }
 
         public Rect Transform { get => m_Transform; set => m_Transform = value; }
@@ -104,21 +105,25 @@ namespace rat
 
         private TextAlignment m_Alignment;
 
-        public Cursor(in Point position, in Size size)
-        {
-            if (!Globals.MapExists) throw new Exception("The map has not been initialized!");
+        public event EventHandler OnCursorMoved;
 
-            m_Parent = Globals.Map;
+        public event EventHandler OnCellFound;
+        public event EventHandler OnActorFound;
+
+        public event EventHandler OnSelectionStarted;
+        public event EventHandler OnSelectionFinished;
+
+        public Cursor(in Point position, in Size size, in Map map)
+        {
+            m_Parent = map;
             m_Transform = new Rect(position, size);
 
             m_Selection = new Selection(this);
         }
 
-        public Cursor(in Rect transform)
+        public Cursor(in Rect transform, in Map map)
         {
-            if (!Globals.MapExists) throw new Exception("The map has not been initialized!");
-
-            m_Parent = Globals.Map;
+            m_Parent = map;
             m_Transform = transform;
 
             m_Selection = new Selection(this);
@@ -133,6 +138,8 @@ namespace rat
         public Selection Selection { get => m_Selection; set => m_Selection = value; }
 
         public Rect Transform { get => m_Transform; set => m_Transform = value; }
+
+        public Point ScreenPosition => Transform.position - Parent.Position;
 
         public Color Color { get => m_Color; set => m_Color = value; }
 
@@ -167,11 +174,11 @@ namespace rat
             m_Color = m_Actor != null && m_Cell != null ? m_Cell.Seen ? m_Actor.Glyph.color : Colors.White : Colors.White;
         }
 
-        public void Draw(in Engine engine, in Map map, in GlyphSet glyphSet, bool attached = false)
+        public void Draw(in Map map, in GlyphSet glyphSet, bool attached = false)
         {
             Rect drawRect = new Rect(Transform.position - map.Position + Screens.MapDisplay.position, Transform.size);
 
-            engine.DrawRect(drawRect, Color, glyphSet.GlyphSize);
+            Globals.Engine.DrawRect(drawRect, Color, glyphSet.GlyphSize);
 
             Point offset = new Point(
                 Alignment.horizontal == HorizontalAlignment.Right ? -1 : Alignment.horizontal == HorizontalAlignment.Left ? 2 : 0,
@@ -188,10 +195,10 @@ namespace rat
                     {
                         text = $"{Transform.position}, {Actor.Name}\n{Actor.Description}";
 
-                        if (Actor != Globals.Player)
+                        if (Actor != Globals.Engine.Player)
                         {
-                            Relation? SeenToPlayer = Globals.Relations[Actor, Globals.Player!];
-                            string SeenToPlayerString = SeenToPlayer != null ? SeenToPlayer.ToString() : $"The {Actor.Name} does not know {Globals.Player!.Name}";
+                            Relation? SeenToPlayer = Globals.Engine.Population.Relations[Actor, Globals.Engine.Player];
+                            string SeenToPlayerString = SeenToPlayer != null ? SeenToPlayer.ToString() : $"The {Actor.Name} does not know {Globals.Engine.Player.Name}";
 
                             text += $"\n\n{SeenToPlayerString}";
                         }
@@ -249,7 +256,7 @@ namespace rat
                 text = Transform.position + ", ???";
             }
 
-            engine.DrawLabel(
+            Globals.Engine.DrawLabel(
                 text,
                 attached ?
                     Screens.UIToMap(drawRect.position + (attached ? offset : Point.Zero)) :
@@ -262,7 +269,7 @@ namespace rat
             );
         }
 
-        public void Input()
+        public bool Input()
         {
             if (Raylib.IsMouseButtonPressed(MouseButton.MOUSE_BUTTON_LEFT))
             {
@@ -274,9 +281,11 @@ namespace rat
                     }
                     catch
                     {
-                        return;
+
                     }
             }
+
+            return false;
         }
     }
 }

@@ -4,7 +4,20 @@
     {
         static void Main(string[] args)
         {
-            Engine engine = new Engine(1337);
+            Globals.Engine = new Engine(1337);
+
+            Globals.Engine.Initialize();
+
+            while (Globals.Engine.Running)
+            {
+                Globals.Engine.CalculateDeltaTime();
+
+                Globals.Engine.Input();
+                Globals.Engine.Update();
+                Globals.Engine.Render();
+            }
+
+            Globals.Engine.Close();
         }
     }
 }

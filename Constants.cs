@@ -28,7 +28,7 @@ namespace rat
             public static readonly int MinimumUpdateTime = 500;
 
             /// <summary>
-            /// Minimum time (in milliseconds) between wave summoning checks
+            /// Minimum time (in turns) between wave summoning checks
             /// </summary>
             public static readonly int MinimumSummonTime = 30000;
 
@@ -120,6 +120,7 @@ namespace rat
 
         public class GlyphSets
         {
+            public static readonly GlyphSetInfo DefaultLogGlyphs = new GlyphSetInfo("Assets\\Glyphs\\glyphs_8x8.png", new Size(8, 8), new Size(16, 16));
             public static readonly GlyphSetInfo DefaultUIGlyphs = new GlyphSetInfo("Assets\\Glyphs\\glyphs_12x12.png", new Size(12, 12), new Size(16, 16));
             public static readonly GlyphSetInfo DefaultMapGlyphs = new GlyphSetInfo("Assets\\Tilesets\\tileset_16x16.png", new Size(16, 16), new Size(16, 16));
         }
@@ -131,12 +132,12 @@ namespace rat
             /// <summary>
             /// Title Bar size in UI coordinate system
             /// </summary>
-            public static readonly Rect TitleBar = new Rect(new Point((int)(0 * ScreenScale), (int)(0 * ScreenScale)), new Size((int)(128 * ScreenScale), (int)(3 * ScreenScale)));
+            public static readonly Rect TitleBar = new Rect(new Point((int)(0 * ScreenScale), (int)(0 * ScreenScale)), new Size((int)(128 * ScreenScale), (int)(2 * ScreenScale)));
 
             /// <summary>
             /// Footer Bar size in Map coordinate system
             /// </summary>
-            public static readonly Rect MapDisplay = new Rect(new Point((int)(0 * ScreenScale), (int)(3 * ScreenScale)), new Size((int)(96 * ScreenScale), (int)(42 * ScreenScale)));
+            public static readonly Rect MapDisplay = new Rect(new Point((int)(0 * ScreenScale), (int)(1 * ScreenScale)), new Size((int)(96 * ScreenScale), (int)(48 * ScreenScale)));
 
             /// <summary>
             /// Footer Bar size in UI coordinate system
@@ -154,7 +155,7 @@ namespace rat
             public static readonly Rect FooterBar = new Rect(new Point((int)(0 * ScreenScale), (int)(64 * ScreenScale)), new Size((int)(128 * ScreenScale), (int)(3 * ScreenScale)));
 
             public static readonly Point LogTooltip = new Point((int)(128 * ScreenScale), (int)(8 * ScreenScale));
-            public static readonly Point InfoToolip = new Point((int)(0 * ScreenScale), (int)(3 * ScreenScale));
+            public static readonly Point InfoToolip = new Point((int)(0 * ScreenScale), (int)(2 * ScreenScale));
             public static readonly Point FixedTooltip = new Point((int)(128 * ScreenScale), (int)(64 * ScreenScale));
 
             /// <summary>
@@ -162,14 +163,11 @@ namespace rat
             /// </summary>
             public static readonly Size WindowSize = new Size((int)(96 * ScreenScale), (int)(48 * ScreenScale));
 
-            private static readonly double _UIToMap = 16.0 / 12.0;
-            private static readonly double _MapToUI = 12.0 / 16.0;
+            public static Point UIToMap(in Point position) => position * (GlyphSets.DefaultMapGlyphs.glyphSize / GlyphSets.DefaultUIGlyphs.glyphSize);
+            public static Point MapToUI(in Point position) => position * (GlyphSets.DefaultUIGlyphs.glyphSize / GlyphSets.DefaultMapGlyphs.glyphSize);
 
-            public static Point UIToMap(in Point position) => new Point((int)(position.x * _UIToMap), (int)(position.y * _UIToMap));
-            public static Point MapToUI(in Point position) => new Point((int)(position.x * _MapToUI), (int)(position.y * _MapToUI));
-
-            public static Size UIToMap(in Size size) => new Size((int)(size.width * _UIToMap), (int)(size.height * _UIToMap));
-            public static Size MapToUI(in Size size) => new Size((int)(size.width * _MapToUI), (int)(size.height * _MapToUI));
+            public static Size UIToMap(in Size size) => size * (GlyphSets.DefaultMapGlyphs.glyphSize / GlyphSets.DefaultUIGlyphs.glyphSize);
+            public static Size MapToUI(in Size size) => size * (GlyphSets.DefaultUIGlyphs.glyphSize / GlyphSets.DefaultMapGlyphs.glyphSize);
         }
 
         /// <summary>
@@ -349,5 +347,53 @@ namespace rat
             public static readonly TextAlignment LowerLeft = new TextAlignment(VerticalAlignment.Lower, HorizontalAlignment.Left);
             public static readonly TextAlignment LowerRight = new TextAlignment(VerticalAlignment.Lower, HorizontalAlignment.Right);
 	    }
+    }
+
+    public class Text
+    {
+        public const string Controls =
+            "\t" +
+            "Movement:" +
+            "\n" +
+            "Manhattan: WASD" +
+            "\n" +
+            "Chebyshev: Numpad" +
+            "\n\n\t" +
+            "Actions:" +
+            "\n" +
+            "Attack:  Bump target" +
+            "\n" +
+            "Mine:    Bumb terrain" +
+            "\n" +
+            "Stand:   X" +
+            "\n" +
+            "Crouch:  C" +
+            "\n" +
+            "Prone:   Z" +
+            "\n" +
+            "Look At: L" +
+            "\n" +
+            "Wait:  KP5" +
+            "\n\n\t" +
+            "Camera:" +
+            "\n" +
+            "Move: Arrow keys" +
+            "\n" +
+            "Lock: Spacebar" +
+            "\n\n" +
+            "    F1: Controls ";
+
+        public const string Actions =
+            "Actions:" +
+            "\n\n" +
+            "1:) Move To" +
+            "\n" +
+            "2:) Look At" +
+            "\n" +
+            "3:) Attack" +
+            "\n" +
+            "4:) Push" +
+            "\n" +
+            "5:) Mine";
     }
 }

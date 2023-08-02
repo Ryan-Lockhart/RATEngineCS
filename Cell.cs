@@ -172,9 +172,7 @@ namespace rat
             }
             else
             {
-                if (m_Index == 0x0F)
-                    m_Index = Globals.Generator.NextBool(0.5) ? 0x0F : 0x2F;
-                else m_Index += Globals.Generator.NextBool(0.75) ? 0x00 : 0x20;
+                m_Index = 0x00;
             }
 
             if (m_Index > 0x4F) throw new Exception("Invalid cell index!");

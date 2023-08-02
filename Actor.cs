@@ -153,19 +153,14 @@ namespace rat
 
             m_Accuracy = accuracy * (randomize ? Globals.Generator.NextRangeDouble(0.9, 1.1) : 1.0);
             m_Dodge = dodge * (randomize ? Globals.Generator.NextRangeDouble(0.9, 1.1) : 1.0);
-
-            Globals.Actors.Add(this);
-            Globals.Living.Add(this);
         }
 
-        public Actor(string name, string description, in Glyph glyph, int reach, float health, float damage, float armor, float accuracy, float dodge, bool randomize, bool isAI = true)
+        public Actor(in Map map, string name, string description, in Glyph glyph, int reach, float health, float damage, float armor, float accuracy, float dodge, bool randomize, bool isAI = true)
         {
-            if (!Globals.MapExists) throw new Exception("The game map has not been initialized!");
-
-            m_Parent = Globals.Map;
+            m_Parent = map;
 
             var randomCell = m_Parent!.FindOpen();
-            if (randomCell == null) throw new Exception($"{nameof(Globals.Map)} has no open cells!");
+            if (randomCell == null) throw new Exception($"{nameof(map)} has no open cells!");
             else if (randomCell.Occupied) throw new Exception($"{nameof(randomCell)} is not vacant!");
 
             m_Residency = randomCell;
@@ -197,12 +192,9 @@ namespace rat
             m_Dodge = dodge * (randomize ? Globals.Generator.NextRangeDouble(0.9, 1.1) : 1.0);
 
             m_Path = new Stack<Point>();
-
-            Globals.Actors.Add(this);
-            Globals.Living.Add(this);
         }
 
-        public virtual void Update()
+        public virtual void Update(in Engine engine)
         {
             if (Parent == null) return;
 
@@ -234,7 +226,7 @@ namespace rat
                 if (actor == this) continue;
                 if (actor.Dead) continue;
 
-                var relation = Globals.Relations[this, actor];
+                var relation = engine.Population.Relations[this, actor];
 
                 if (relation == null) continue;
 
@@ -305,7 +297,7 @@ namespace rat
 
                     m_Path = Parent.CalculatePath(Position, Target.Position);
 
-                    if (HasPath && m_Path.Count > 0)
+                    if (HasPath && m_Path!.Count > 0)
                         Act(m_Path.Pop(), false);
                 }
             }
@@ -441,13 +433,13 @@ namespace rat
                 switch (cause)
                 {
                     case CauseOfDeath.Exsanguination:
-                        Globals.AppendMessage((Name == "Jenkins" ? "\n" : "\nThe ") + m_Name + " bled out!\nIt writhes in a pool of its own blood...\n");
+                        Globals.Engine.MessageScreen.MessageLog.AppendMessage((Name == "Jenkins" ? "\n" : "\nThe ") + m_Name + " bled out!\nIt writhes in a pool of its own blood...\n");
                         return;
                     case CauseOfDeath.Decapitation:
-                        Globals.AppendMessage((Name == "Jenkins" ? "\n" : "\nThe ") + m_Name + " was decapitated!\nIts head rolls onto the bloodied ground...\n");
+                        Globals.Engine.MessageScreen.MessageLog.AppendMessage((Name == "Jenkins" ? "\n" : "\nThe ") + m_Name + " was decapitated!\nIts head rolls onto the bloodied ground...\n");
                         return;
                     default:
-                        Globals.AppendMessage((Name == "Jenkins" ? "\n" : "\nThe ") + m_Name + " was slain!\nIts blood stains the ground...\n");
+                        Globals.Engine.MessageScreen.MessageLog.AppendMessage((Name == "Jenkins" ? "\n" : "\nThe ") + m_Name + " was slain!\nIts blood stains the ground...\n");
                         return;
                 }
             }
@@ -540,17 +532,17 @@ namespace rat
             if (Name == "Jenkins" || what.Name == "Jenkins")
             {
                 if (randomizedAccuracy <= 0.0)
-                    Globals.AppendMessage(Name == "Jenkins" ? "\n" : "\nThe " + Name + " misses!");
+                    Globals.Engine.MessageScreen.MessageLog.AppendMessage(Name == "Jenkins" ? "\n" : "\nThe " + Name + " misses!");
                 else if (randomizedAccuracy > 0.0 && randomizedAccuracy <= 0.5)
-                    Globals.AppendMessage(Name == "Jenkins" ? "\n" : "\nThe " + Name + " swings with reckless abandon!");
+                    Globals.Engine.MessageScreen.MessageLog.AppendMessage(Name == "Jenkins" ? "\n" : "\nThe " + Name + " swings with reckless abandon!");
                 else if (randomizedAccuracy > 0.5 && randomizedAccuracy <= 1.0)
-                    Globals.AppendMessage(Name == "Jenkins" ? "\n" : "\nThe " + Name + " swings wildly!");
+                    Globals.Engine.MessageScreen.MessageLog.AppendMessage(Name == "Jenkins" ? "\n" : "\nThe " + Name + " swings wildly!");
                 else if (randomizedAccuracy > 1.0 && randomizedAccuracy <= 1.75)
-                    Globals.AppendMessage(Name == "Jenkins" ? "\n" : "\nThe " + Name + " swings with skill!");
+                    Globals.Engine.MessageScreen.MessageLog.AppendMessage(Name == "Jenkins" ? "\n" : "\nThe " + Name + " swings with skill!");
                 else if (randomizedAccuracy > 1.75 && randomizedAccuracy <= 2.5)
-                    Globals.AppendMessage(Name == "Jenkins" ? "\n" : "\nThe " + Name + " executes an exquisite swing!");
+                    Globals.Engine.MessageScreen.MessageLog.AppendMessage(Name == "Jenkins" ? "\n" : "\nThe " + Name + " executes an exquisite swing!");
                 else if (randomizedAccuracy > 2.5)
-                    Globals.AppendMessage(Name == "Jenkins" ? "\n" : "\nThe " + Name + " unleashes a masterful swing!");
+                    Globals.Engine.MessageScreen.MessageLog.AppendMessage(Name == "Jenkins" ? "\n" : "\nThe " + Name + " unleashes a masterful swing!");
             }
 
             what.Defend(this, what.Position - Position, randomizedAccuracy, randomizedDamage);
@@ -562,7 +554,7 @@ namespace rat
 
             Target = attacker;
 
-            Globals.Relations[this, attacker].Current -= 25;
+            Globals.Engine.Population.Relations[this, attacker].Current -= 25;
 
             double randomizedDodge = Math.Clamp(m_Dodge * Globals.Generator.NextRangeDouble(0.15, 1.15), 0.0, 1.0);
 
@@ -592,7 +584,7 @@ namespace rat
                     else
                     {
                         if (Name == "Jenkins" || attacker.Name == "Jenkins")
-                            Globals.AppendMessage(crit ? (Name == "Jenkins" ? "\n" + m_Name + "'s mortality has been shaken...\nAnother blow may be fatal!\n" : "\nThe " + m_Name + " suffered a terrible blow...\nIt quivers with haggard anticipation!\n") : (Name == "Jenkins" ? "\n" : "\nThe ") + m_Name + " was merely wounded...\nThe gods demand more bloodshed!\n");
+                            Globals.Engine.MessageScreen.MessageLog.AppendMessage(crit ? (Name == "Jenkins" ? "\n" + m_Name + "'s mortality has been shaken...\nAnother blow may be fatal!\n" : "\nThe " + m_Name + " suffered a terrible blow...\nIt quivers with haggard anticipation!\n") : (Name == "Jenkins" ? "\n" : "\nThe ") + m_Name + " was merely wounded...\nThe gods demand more bloodshed!\n");
                     }
 
                     for (int i = 0; i < bloodParticles; i++)
@@ -613,14 +605,14 @@ namespace rat
                 else
                 {
                     if (Name == "Jenkins" || attacker.Name == "Jenkins")
-                        Globals.AppendMessage(
+                        Globals.Engine.MessageScreen.MessageLog.AppendMessage(
                             Name == "Jenkins" ? "\n" + Name + "' armor absorbed the blow...\nIts burnished surface remains stalwart!\n" : "\nThe " + Name + "'s armor absorbed the blow...\nStrike its weakpoints!\n");
                 }
             }
             else
             {
                 if (Name == "Jenkins" || attacker.Name == "Jenkins")
-                    Globals.AppendMessage(
+                    Globals.Engine.MessageScreen.MessageLog.AppendMessage(
                         (Name == "Jenkins" ? "\n" + Name + " evaded its attack..." : "\nThe " + Name + " evaded your attack...") + (Name == "Jenkins" ? "\nJenkins' confidence is bolstered!\n" : "\nIt goads you to strike again!\n"));
             }
         }
@@ -668,7 +660,7 @@ namespace rat
             else
             {
                 m_CurrentHealth -= 0.5f * displacer.Damage;
-                Globals.AppendMessage(m_Name == "Jenkins" ? "\n" : "\nThe" + m_Name + " was shoved into a wall!\n" + m_Name == "Jenkins" ? "He suffered blunt force trauma!" : "It suffered blunt force trauma!");
+                Globals.Engine.MessageScreen.MessageLog.AppendMessage(m_Name == "Jenkins" ? "\n" : "\nThe" + m_Name + " was shoved into a wall!\n" + m_Name == "Jenkins" ? "He suffered blunt force trauma!" : "It suffered blunt force trauma!");
             }
         }
 
