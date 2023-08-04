@@ -152,8 +152,8 @@ namespace rat
 
             m_Map = new Map(Settings.MapSize, Settings.BorderSize);
 
-            m_Map.Generate(Settings.MapGeneration.OpenCave.fillPercent);
-            m_Map.Smooth(Settings.MapGeneration.OpenCave.iterations, Settings.MapGeneration.OpenCave.threshold);
+            m_Map.Generate(Settings.MapGeneration.TunnelHeavy.fillPercent);
+            m_Map.Smooth(Settings.MapGeneration.TunnelHeavy.iterations, Settings.MapGeneration.TunnelHeavy.threshold);
 
             m_Map.Populate();
 
@@ -162,9 +162,14 @@ namespace rat
             m_Cursor = new Cursor(Point.Zero, Size.One, Map);
 
             m_MapScreen = new MapScreen("Map Screen", Screens.MapDisplay, Map, Cursor);
-            m_MessageScreen = new MessageScreen("Message Screen", Screens.MessageDisplay, Cursor);
+            m_MessageScreen = new MessageScreen("Message Screen", new Rect(Screens.MessagesTooltip, Size.Zero), Cursor);
 
-            m_Player = new Actor(Map, "Jenkins", "A spry lad clad in armor and blade", Glyphs.ASCII.Player, 1, 10.0f, 5.0f, 7.5f, 0.50f, 0.75f, false, false);
+            m_Player = new Actor
+            (
+                Map, "Jenkins", "A spry lad clad in armor and blade",
+                Glyphs.ASCII.Player,
+                1, 10.0f, 5.0f, 7.5f, 0.50f, 0.75f, false, false
+            );
 
             int totalEnemies = Globals.Generator.Next(Settings.Population.MinimumInitialEnemies, Settings.Population.MaximumInitialEnemies);
 
@@ -293,6 +298,7 @@ namespace rat
 
                         if (Raylib.IsKeyDown(KeyboardKey.KEY_KP_5))
                         {
+                            m_Player.Act(Point.Zero, Action.Wait, true);
                             m_CurrentAction = Action.None;
 
                             SetLastInput();
@@ -335,16 +341,16 @@ namespace rat
                 switch (m_Player.Stance)
                 {
                     case Stance.Erect:
-                        view_distance = 32.0;
+                        view_distance = 16.0;
                         view_span = 135.0;
                         break;
                     case Stance.Crouch:
-                        view_distance = 16.0;
-                        view_span = 150.0;
+                        view_distance = 8.0;
+                        view_span = 360.0;
                         break;
                     case Stance.Prone:
-                        view_distance = 48.0;
-                        view_span = 33.75;
+                        view_distance = 32.0;
+                        view_span = 45;
                         break;
                 }
 
@@ -394,6 +400,7 @@ namespace rat
                 }
             }
 
+            m_MessageScreen.Update();
         }
 
         public virtual void Render()
@@ -402,6 +409,7 @@ namespace rat
             Raylib.ClearBackground(Colors.Black);
 
             MapScreen.Draw(GameSet);
+            MessageScreen.Draw(UISet);
             m_Cursor.Draw(Map, GameSet);
 
             string text =
@@ -417,8 +425,8 @@ namespace rat
             DrawFixedLabel(Settings.WindowTitle, Screens.TitleBar, Size.One, Alignments.Centered, Colors.White);
 
             if (m_ShowControls)
-                DrawLabel(Text.Controls, Screens.FooterBar.position + new Point(Screens.FooterBar.size.width / 2, 0), Size.One, Alignments.LowerCentered, Colors.White);
-            else DrawLabel(" F1: Controls ", Screens.FooterBar.position + new Point(Screens.FooterBar.size.width / 2, 0), Size.One, Alignments.LowerCentered, Colors.White);
+                DrawLabel(Text.Controls, Screens.ControlsTooltip, Size.One, Alignments.UpperRight, Colors.White);
+            DrawLabel("    F1: Controls    ", Screens.ControlsTooltip, Size.One, Alignments.UpperRight, Colors.White);
 
             if (m_ActionSelect)
                 DrawLabel(Text.Actions, Screens.LeftSideBar.position + new Point(0, Screens.LeftSideBar.size.height / 2), Size.One, Alignments.LeftCentered, Colors.White);
@@ -557,15 +565,15 @@ namespace rat
 
             maxWidth = System.Math.Max(maxWidth, currWidth);
 
+            Size labelSize = new Size(maxWidth + (padding.width * 2), numLines + (padding.height * 2));
+
             Point startPosition = position;
 
-            if (alignment.horizontal == HorizontalAlignment.Center) startPosition.x -= maxWidth + (padding.width / 2) / 2;
-            else if (alignment.horizontal == HorizontalAlignment.Right) startPosition.x -= maxWidth + padding.height * 2;
+            if (alignment.horizontal == HorizontalAlignment.Center) startPosition.x -= labelSize.width / 2;
+            else if (alignment.horizontal == HorizontalAlignment.Right) startPosition.x -= labelSize.width;
 
-            if (alignment.vertical == VerticalAlignment.Center) startPosition.y -= numLines + (padding.height / 2) / 2;
-            else if (alignment.vertical == VerticalAlignment.Lower) startPosition.y -= numLines + padding.height * 2;
-
-            Size labelSize = new Size(maxWidth + padding.width * 2, numLines + padding.height * 2);
+            if (alignment.vertical == VerticalAlignment.Center) startPosition.y -= labelSize.height / 2;
+            else if (alignment.vertical == VerticalAlignment.Lower) startPosition.y -= labelSize.height;
 
             DrawRect(startPosition, labelSize, Colors.Black, UISet.GlyphSize, true);
 
@@ -610,8 +618,6 @@ namespace rat
 
             DrawRect(rect, color, UISet.GlyphSize, false);
 
-            Point startPosition = rect.position;
-
             int numLines = text == "" ? 0 : 1;
 
             int maxWidth = 0;
@@ -643,11 +649,18 @@ namespace rat
 
             maxWidth = System.Math.Max(maxWidth, currWidth);
 
-            if (alignment.horizontal == HorizontalAlignment.Center) startPosition.x += (rect.size.width + (padding.width / 2) - maxWidth) / 2;
-            else if (alignment.horizontal == HorizontalAlignment.Right) startPosition.x += rect.size.width + padding.width * 2;
+            Size labelSize = new Size(maxWidth + (padding.width * 2), numLines + (padding.height * 2));
+            Size delta = rect.size - labelSize;
 
-            if (alignment.vertical == VerticalAlignment.Center) startPosition.y += (rect.size.height + (padding.height / 2) - numLines) / 2;
-            else if (alignment.vertical == VerticalAlignment.Lower) startPosition.y += rect.size.height + padding.height * 2;
+            Point startPosition = rect.position;
+
+            if (alignment.horizontal == HorizontalAlignment.Center) startPosition.x += delta.width / 2;
+            else if (alignment.horizontal == HorizontalAlignment.Right) startPosition.x += delta.width;
+
+            if (alignment.vertical == VerticalAlignment.Center) startPosition.y += delta.height / 2;
+            else if (alignment.vertical == VerticalAlignment.Lower) startPosition.y += delta.height;
+
+            startPosition += padding;
 
             Point carriagePosition = startPosition;
 

@@ -86,7 +86,7 @@ namespace rat
                 /// <summary>
                 /// The number of enemies that are available for generation
                 /// </summary>
-                public static readonly int MaximumEnemyTypes = 6;
+                public static readonly int MaximumEnemyTypes = 8;
 
                 public static readonly int MinimumInitialEnemies = 5;
                 public static readonly int MaximumInitialEnemies = 10;
@@ -127,22 +127,17 @@ namespace rat
 
         public class Screens
         {
-            public static readonly double ScreenScale = 1.5;
+            public static readonly double ScreenScale = 1.0;
 
             /// <summary>
             /// Title Bar size in UI coordinate system
             /// </summary>
-            public static readonly Rect TitleBar = new Rect(new Point((int)(0 * ScreenScale), (int)(0 * ScreenScale)), new Size((int)(128 * ScreenScale), (int)(2 * ScreenScale)));
+            public static readonly Rect TitleBar = new Rect(new Point((int)(0 * ScreenScale), (int)(0 * ScreenScale)), new Size((int)(128 * ScreenScale), (int)(3 * ScreenScale)));
 
             /// <summary>
             /// Footer Bar size in Map coordinate system
             /// </summary>
             public static readonly Rect MapDisplay = new Rect(new Point((int)(0 * ScreenScale), (int)(1 * ScreenScale)), new Size((int)(96 * ScreenScale), (int)(48 * ScreenScale)));
-
-            /// <summary>
-            /// Footer Bar size in UI coordinate system
-            /// </summary>
-            public static readonly Rect MessageDisplay = new Rect(new Point((int)(80 * ScreenScale), (int)(8 * ScreenScale)), new Size((int)(48 * ScreenScale), (int)(48 * ScreenScale)));
 
             /// <summary>
             /// Footer Bar size in UI coordinate system
@@ -154,9 +149,10 @@ namespace rat
             /// </summary>
             public static readonly Rect FooterBar = new Rect(new Point((int)(0 * ScreenScale), (int)(64 * ScreenScale)), new Size((int)(128 * ScreenScale), (int)(3 * ScreenScale)));
 
-            public static readonly Point LogTooltip = new Point((int)(128 * ScreenScale), (int)(8 * ScreenScale));
-            public static readonly Point InfoToolip = new Point((int)(0 * ScreenScale), (int)(2 * ScreenScale));
+            public static readonly Point ControlsTooltip = new Point((int)(128 * ScreenScale), (int)(0 * ScreenScale));
+            public static readonly Point InfoToolip = new Point((int)(0 * ScreenScale), (int)(3 * ScreenScale));
             public static readonly Point FixedTooltip = new Point((int)(128 * ScreenScale), (int)(64 * ScreenScale));
+            public static readonly Point MessagesTooltip = FooterBar.position + new Point(FooterBar.size.width / 2, 0);
 
             /// <summary>
             /// Window size in Map coordinate system
@@ -352,36 +348,35 @@ namespace rat
     public class Text
     {
         public const string Controls =
-            "\t" +
+            "\n\n\n" +
+            "" +
             "Movement:" +
             "\n" +
-            "Manhattan: WASD" +
+            "Manhattan - WASD" +
             "\n" +
-            "Chebyshev: Numpad" +
-            "\n\n\t" +
+            "Chebyshev - Numpad" +
+            "\n\n" +
             "Actions:" +
             "\n" +
-            "Attack:  Bump target" +
+            "Attack - Bump target" +
             "\n" +
-            "Mine:    Bumb terrain" +
+            "Mine - Bumb terrain" +
             "\n" +
-            "Stand:   X" +
+            "Stand - X" +
             "\n" +
-            "Crouch:  C" +
+            "Crouch - C" +
             "\n" +
-            "Prone:   Z" +
+            "Prone - Z" +
             "\n" +
-            "Look At: L" +
+            "Look At - L" +
             "\n" +
-            "Wait:  KP5" +
-            "\n\n\t" +
+            "Wait - KP5" +
+            "\n\n" +
             "Camera:" +
             "\n" +
-            "Move: Arrow keys" +
+            "Move - Arrow keys" +
             "\n" +
-            "Lock: Spacebar" +
-            "\n\n" +
-            "    F1: Controls ";
+            "Lock - Spacebar";
 
         public const string Actions =
             "Actions:" +

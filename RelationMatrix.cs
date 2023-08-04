@@ -51,9 +51,9 @@ namespace rat
             m_Origin = origin;
             m_Target = target;
 
-            m_Maximum = maximum;
-            m_Current = current;
             m_Minimum = minimum;
+            m_Maximum = maximum;
+            Current = current;
         }
 
         public Actor Origin { get => m_Origin; }
@@ -121,13 +121,86 @@ namespace rat
         public void AddRelation(in Actor origin, in Actor target, bool generate = true)
         {
             if (!Acquainted(origin, target) && origin != target)
-                m_Relations[origin.ID].Add(target.ID, new Relation(origin, target, generate ? Globals.Generator.Next(-100, 101) : 0));
+                m_Relations[origin.ID].Add(target.ID, new Relation(origin, target, generate ? Globals.Generator.Next(-100, 101) + GetBiases(origin, target) : 0));
         }
 
         public void AddRelation(in Actor origin, in Actor target, int current, int maximum = 100, int minimum = -100)
         {
             if (!Acquainted(origin, target) && origin != target)
                 m_Relations[origin.ID].Add(target.ID, new Relation(origin, target, current, maximum, minimum));
+        }
+
+        /// <summary>
+        /// Generate relational biases based on name of actors and whether they are AI
+        /// </summary>
+        /// <param name="origin"></param>
+        /// <param name="target"></param>
+        /// <returns>A specialized bias to be applied to the generated relation</returns>
+        private int GetBiases(in Actor origin, in Actor target)
+        {
+            int currentBias = 0;
+
+            // NPCs should be hostile to the player
+            if (origin.IsAI != target.IsAI)
+                currentBias -= 75;
+
+            // Creatures with the same name should be friendlier
+            if (origin.Name == target.Name)
+                currentBias += 50;
+            else currentBias -= 50;
+
+            bool originIsWraith = origin.Name == "Wraith";
+            bool targetIsWraith = target.Name == "Wraith";
+
+            bool originIsDraugr = origin.Name == "Draugr";
+            bool targetIsDraugr = target.Name == "Draugr";
+
+            bool originIsUndead = originIsWraith || originIsDraugr;
+            bool targetIsUndead = targetIsWraith || targetIsDraugr;
+
+            // Wraiths and draugr are only friendly to each other
+            if (originIsUndead && targetIsUndead)
+                return 200;
+            else if ((originIsUndead && !targetIsUndead) || (!originIsUndead && targetIsUndead))
+                return -200;
+
+            bool originIsBasilisk = origin.Name == "Basilisk";
+            bool targetIsBasilisk = target.Name == "Basilisk";
+
+            bool originIsSerpentman = origin.Name == "Serpentman";
+            bool targetIsSerpentman = target.Name == "Serpentman";
+
+            bool originIsReptilian = originIsSerpentman || originIsBasilisk;
+            bool targetIsReptilian = targetIsSerpentman || targetIsBasilisk;
+
+            // Serpentmen and basilisks are only friendly to each other
+            if (originIsReptilian && targetIsReptilian)
+                return 200;
+            else if ((originIsReptilian && !targetIsReptilian) || (!originIsReptilian && targetIsReptilian))
+                return -200;
+
+            bool originIsGremlin = origin.Name == "Gremlin";
+            bool targetIsGremlin = target.Name == "Gremlin";
+
+            bool originIsGoblin = origin.Name == "Goblin";
+            bool targetIsGoblin = target.Name == "Goblin";
+
+            bool originIsOrk = origin.Name == "Ork";
+            bool targetIsOrk = target.Name == "Ork";
+
+            bool originIsTroll = origin.Name == "Troll";
+            bool targetIsTroll = target.Name == "Troll";
+
+            bool originIsGreenskin = originIsGremlin || originIsGoblin || originIsOrk || originIsTroll;
+            bool targetIsGreenskin = targetIsGremlin || targetIsGoblin || targetIsOrk || targetIsTroll;
+
+            // Gremlins, goblins, orks and troll are only friendly to each other
+            if (originIsGreenskin && targetIsGreenskin)
+                return 200;
+            else if ((originIsGreenskin && !targetIsGreenskin) || (!originIsGreenskin && targetIsGreenskin))
+                return -200;
+
+            return currentBias;
         }
 
         public void SetRelation(in Actor origin, in Actor target, int value)

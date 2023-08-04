@@ -12,7 +12,7 @@ namespace rat
         private Queue<string> m_Messages;
         private int m_MaxMessages;
 
-        public MessageLog(int maxMessages = 21)
+        public MessageLog(int maxMessages = 4)
         {
             m_Messages = new Queue<string>();
             m_MaxMessages = maxMessages;
@@ -23,7 +23,10 @@ namespace rat
 
         public List<string> Messages => m_Messages.ToList();
 
-        public void AppendMessage(in string message) => m_Messages.Enqueue(message);
+        public void AppendMessage(in string message)
+        {
+            if (message != "") m_Messages.Enqueue(message);
+        }
 
         public void TrimLog()
         {

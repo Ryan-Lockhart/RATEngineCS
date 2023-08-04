@@ -15,6 +15,10 @@ namespace rat
 		/// Default state of action enum
 		/// </summary>
         None,
+        /// <summary>
+        /// Do nothing on turn
+        /// </summary>
+        Wait,
 		/// <summary>
 		/// Move to specified cell (no bump attack)
 		/// </summary>
@@ -70,14 +74,14 @@ namespace rat
         protected bool m_Dead;
         protected bool m_Bleeding;
 
-        protected double m_MaxHealth;
-        protected double m_CurrentHealth;
+        protected float m_MaxHealth;
+        protected float m_CurrentHealth;
 
-        protected double m_Damage;
-        protected double m_Armor;
+        protected float m_Damage;
+        protected float m_Armor;
 
-        protected double m_Accuracy;
-        protected double m_Dodge;
+        protected float m_Accuracy;
+        protected float m_Dodge;
 
         public ulong ID { get => m_ID; set => m_ID = value; }
 
@@ -110,14 +114,18 @@ namespace rat
 
         public bool Bleeding { get => m_Bleeding; set => m_Bleeding = value; }
 
-        public double MaxHealth { get => m_MaxHealth; set => m_MaxHealth = value; }
-        public double CurrentHealth { get => m_CurrentHealth; set => m_CurrentHealth = value; }
+        public float MaxHealth { get => m_MaxHealth; set => m_MaxHealth = value; }
+        public float CurrentHealth
+        {
+            get => m_CurrentHealth;
+            set => m_CurrentHealth = System.Math.Min(value, MaxHealth);
+        }
 
-        public double Damage { get => m_Damage; set => m_Damage = value; }
-        public double Armor { get => m_Armor; set => m_Armor = value; }
+        public float Damage { get => m_Damage; set => m_Damage = value; }
+        public float Armor { get => m_Armor; set => m_Armor = value; }
 
-        public double Accuracy { get => m_Accuracy; set => m_Accuracy = value; }
-        public double Dodge { get => m_Dodge; set => m_Dodge = value; }
+        public float Accuracy { get => m_Accuracy; set => m_Accuracy = value; }
+        public float Dodge { get => m_Dodge; set => m_Dodge = value; }
 
         public Actor(Cell? startingCell, string name, string description, in Glyph glyph, int reach, float health, float damage, float armor, float accuracy, float dodge, bool randomize, bool isAI = true)
         {
@@ -131,7 +139,7 @@ namespace rat
 
             m_Position = m_Residency.Position;
 
-            m_ID = Globals.CurrentID;
+            m_ID = Globals.CurrentID++;
 
             m_AI = isAI;
 
@@ -145,14 +153,16 @@ namespace rat
             m_Dead = false;
             m_Bleeding = false;
 
-            m_MaxHealth = health * (randomize ? Globals.Generator.NextRangeDouble(0.9, 1.1) : 1.0);
+            m_MaxHealth = health * (randomize ? Globals.Generator.NextRangeSingle(0.75f, 1.25f) : 1.0f);
             m_CurrentHealth = MaxHealth;
 
-            m_Damage = damage * (randomize ? Globals.Generator.NextRangeDouble(0.9, 1.1) : 1.0);
-            m_Armor = armor * (randomize ? Globals.Generator.NextRangeDouble(0.9, 1.1) : 1.0);
+            m_Damage = damage * (randomize ? Globals.Generator.NextRangeSingle(0.75f, 1.25f) : 1.0f);
+            m_Armor = armor * (randomize ? Globals.Generator.NextRangeSingle(0.75f, 1.25f) : 1.0f);
 
-            m_Accuracy = accuracy * (randomize ? Globals.Generator.NextRangeDouble(0.9, 1.1) : 1.0);
-            m_Dodge = dodge * (randomize ? Globals.Generator.NextRangeDouble(0.9, 1.1) : 1.0);
+            m_Accuracy = accuracy * (randomize ? Globals.Generator.NextRangeSingle(0.75f, 1.25f) : 1.0f);
+            m_Dodge = dodge * (randomize ? Globals.Generator.NextRangeSingle(0.75f, 1.25f) : 1.0f);
+
+            m_Path = new Stack<Point>();
         }
 
         public Actor(in Map map, string name, string description, in Glyph glyph, int reach, float health, float damage, float armor, float accuracy, float dodge, bool randomize, bool isAI = true)
@@ -168,7 +178,7 @@ namespace rat
             m_Residency.Occupant = this;
             m_Position = m_Residency.Position;
 
-            m_ID = Globals.CurrentID;
+            m_ID = Globals.CurrentID++;
 
             m_AI = isAI;
 
@@ -182,14 +192,14 @@ namespace rat
             m_Dead = false;
             m_Bleeding = false;
 
-            m_MaxHealth = health * (randomize ? Globals.Generator.NextRangeDouble(0.9, 1.1) : 1.0);
+            m_MaxHealth = health * (randomize ? Globals.Generator.NextRangeSingle(0.75f, 1.25f) : 1.0f);
             m_CurrentHealth = MaxHealth;
 
-            m_Damage = damage * (randomize ? Globals.Generator.NextRangeDouble(0.9, 1.1) : 1.0);
-            m_Armor = armor * (randomize ? Globals.Generator.NextRangeDouble(0.9, 1.1) : 1.0);
+            m_Damage = damage * (randomize ? Globals.Generator.NextRangeSingle(0.75f, 1.25f) : 1.0f);
+            m_Armor = armor * (randomize ? Globals.Generator.NextRangeSingle(0.75f, 1.25f) : 1.0f);
 
-            m_Accuracy = accuracy * (randomize ? Globals.Generator.NextRangeDouble(0.9, 1.1) : 1.0);
-            m_Dodge = dodge * (randomize ? Globals.Generator.NextRangeDouble(0.9, 1.1) : 1.0);
+            m_Accuracy = accuracy * (randomize ? Globals.Generator.NextRangeSingle(0.75f, 1.25f) : 1.0f);
+            m_Dodge = dodge * (randomize ? Globals.Generator.NextRangeSingle(0.75f, 1.25f) : 1.0f);
 
             m_Path = new Stack<Point>();
         }
@@ -326,21 +336,11 @@ namespace rat
 
         public virtual void Act(in Point position, bool offset = true)
         {
-            if (Dead) return;
-
             if (Parent == null || Residency == null) throw new Exception("Orphaned actors cannot act!");
 
-            if (m_Bleeding)
-            {
-                m_CurrentHealth -= m_MaxHealth * 0.025;
-                Residency.Bloody = true;
+            if (Bleeding) Bleed(0.025f);
 
-                if (m_CurrentHealth <= 0)
-                {
-
-                    return;
-                }
-            }
+            if (Dead) return;
 
             Point actPosition = offset ? m_Position + position : position;
 
@@ -368,22 +368,13 @@ namespace rat
 
         public virtual void Act(in Point position, Action action, bool offset = true)
         {
-            if (Dead) return;
-
             if (Parent == null || Residency == null) throw new Exception("Orphaned actors cannot act!");
 
-            if (m_Bleeding)
-            {
-                m_CurrentHealth -= m_MaxHealth * 0.0125;
-                Residency.Bloody = true;
+            if (Bleeding) Bleed(0.025f);
 
-                if (m_CurrentHealth <= 0)
-                {
-                    Die(null, CauseOfDeath.Exsanguination);
+            if (Dead) return;
 
-                    return;
-                }
-            }
+            if (action == Action.Wait) return;
 
             Point actPosition = offset ? m_Position + position : position;
 
@@ -422,9 +413,27 @@ namespace rat
 		public bool WithinReach(in Cell cell)
             => Point.Distance(Position, cell.Position) <= Reach;
 
+        /// <summary>
+        /// Cause the actor to lose health equal to their max health multiplied by blood loss percentage
+        /// </summary>
+        /// <param name="bloodLoss">The percentage of blood lost</param>
+        protected virtual void Bleed(float bloodLoss)
+        {
+            m_CurrentHealth -= m_MaxHealth * bloodLoss;
+            Residency.Bloody = true;
+
+            if (m_CurrentHealth <= 0)
+            {
+                Die(null, CauseOfDeath.Exsanguination);
+
+                return;
+            }
+        }
+
         protected virtual void Die(Actor? killer, CauseOfDeath cause)
         {
             Dead = true;
+            Bleeding = false;
             Residency.AddCorpse(this, cause);
             Residency.Vacate();
 
@@ -433,13 +442,13 @@ namespace rat
                 switch (cause)
                 {
                     case CauseOfDeath.Exsanguination:
-                        Globals.Engine.MessageScreen.MessageLog.AppendMessage((Name == "Jenkins" ? "\n" : "\nThe ") + m_Name + " bled out!\nIt writhes in a pool of its own blood...\n");
+                        Globals.Engine.MessageScreen.MessageLog.AppendMessage((Name == "Jenkins" ? "" : "\nThe ") + m_Name + " bled out! It writhes in a pool of its own blood...\n");
                         return;
                     case CauseOfDeath.Decapitation:
-                        Globals.Engine.MessageScreen.MessageLog.AppendMessage((Name == "Jenkins" ? "\n" : "\nThe ") + m_Name + " was decapitated!\nIts head rolls onto the bloodied ground...\n");
+                        Globals.Engine.MessageScreen.MessageLog.AppendMessage((Name == "Jenkins" ? "" : "\nThe ") + m_Name + " was decapitated! Its head rolls onto the bloodied ground...\n");
                         return;
                     default:
-                        Globals.Engine.MessageScreen.MessageLog.AppendMessage((Name == "Jenkins" ? "\n" : "\nThe ") + m_Name + " was slain!\nIts blood stains the ground...\n");
+                        Globals.Engine.MessageScreen.MessageLog.AppendMessage((Name == "Jenkins" ? "" : "\nThe ") + m_Name + " was slain! Its blood stains the ground...\n");
                         return;
                 }
             }
@@ -526,29 +535,29 @@ namespace rat
 
             Target = what;
 
-            double randomizedAccuracy = Math.Clamp(m_Accuracy * Globals.Generator.NextRangeDouble(0.5, 1.5), 0.0, 3.0);
-            double randomizedDamage = Math.Clamp(m_Accuracy * Globals.Generator.NextRangeDouble(0.75, 1.25), 0.0, double.MaxValue);
+            float randomizedAccuracy = Math.Clamp(m_Accuracy * Globals.Generator.NextRangeSingle(0.5f, 1.5f), 0.0f, 3.0f);
+            float randomizedDamage = Math.Clamp(m_Damage * Globals.Generator.NextRangeSingle(0.75f, 1.25f), 0.0f, float.MaxValue);
 
             if (Name == "Jenkins" || what.Name == "Jenkins")
             {
-                if (randomizedAccuracy <= 0.0)
-                    Globals.Engine.MessageScreen.MessageLog.AppendMessage(Name == "Jenkins" ? "\n" : "\nThe " + Name + " misses!");
-                else if (randomizedAccuracy > 0.0 && randomizedAccuracy <= 0.5)
-                    Globals.Engine.MessageScreen.MessageLog.AppendMessage(Name == "Jenkins" ? "\n" : "\nThe " + Name + " swings with reckless abandon!");
-                else if (randomizedAccuracy > 0.5 && randomizedAccuracy <= 1.0)
-                    Globals.Engine.MessageScreen.MessageLog.AppendMessage(Name == "Jenkins" ? "\n" : "\nThe " + Name + " swings wildly!");
-                else if (randomizedAccuracy > 1.0 && randomizedAccuracy <= 1.75)
-                    Globals.Engine.MessageScreen.MessageLog.AppendMessage(Name == "Jenkins" ? "\n" : "\nThe " + Name + " swings with skill!");
-                else if (randomizedAccuracy > 1.75 && randomizedAccuracy <= 2.5)
-                    Globals.Engine.MessageScreen.MessageLog.AppendMessage(Name == "Jenkins" ? "\n" : "\nThe " + Name + " executes an exquisite swing!");
-                else if (randomizedAccuracy > 2.5)
-                    Globals.Engine.MessageScreen.MessageLog.AppendMessage(Name == "Jenkins" ? "\n" : "\nThe " + Name + " unleashes a masterful swing!");
+                if (randomizedAccuracy <= 0.0f)
+                    Globals.Engine.MessageScreen.MessageLog.AppendMessage((Name == "Jenkins" ? "" : "The ") + Name + " misses!");
+                else if (randomizedAccuracy > 0.0f && randomizedAccuracy <= 0.5f)
+                    Globals.Engine.MessageScreen.MessageLog.AppendMessage((Name == "Jenkins" ? "" : "The ") + Name + " swings with reckless abandon!");
+                else if (randomizedAccuracy > 0.5f && randomizedAccuracy <= 1.0f)
+                    Globals.Engine.MessageScreen.MessageLog.AppendMessage((Name == "Jenkins" ? "" : "The ") + Name + " swings wildly!");
+                else if (randomizedAccuracy > 1.0f && randomizedAccuracy <= 1.75f)
+                    Globals.Engine.MessageScreen.MessageLog.AppendMessage((Name == "Jenkins" ? "" : "The ") + Name + " swings with skill!");
+                else if (randomizedAccuracy > 1.75f && randomizedAccuracy <= 2.5f)
+                    Globals.Engine.MessageScreen.MessageLog.AppendMessage((Name == "Jenkins" ? "" : "The ") + Name + " executes an exquisite swing!");
+                else if (randomizedAccuracy > 2.5f)
+                    Globals.Engine.MessageScreen.MessageLog.AppendMessage((Name == "Jenkins" ? "" : "The ") + Name + " unleashes a masterful swing!");
             }
 
             what.Defend(this, what.Position - Position, randomizedAccuracy, randomizedDamage);
         }
 
-        protected virtual void Defend(Actor? attacker, in Point direction, double accuracy, double damage)
+        protected virtual void Defend(Actor? attacker, in Point direction, float accuracy, float damage)
         {
             if (attacker == null) return;
 
@@ -556,7 +565,7 @@ namespace rat
 
             Globals.Engine.Population.Relations[this, attacker].Current -= 25;
 
-            double randomizedDodge = Math.Clamp(m_Dodge * Globals.Generator.NextRangeDouble(0.15, 1.15), 0.0, 1.0);
+            float randomizedDodge = Math.Clamp(m_Dodge * Globals.Generator.NextRangeSingle(0.15f, 1.15f), 0.0f, 1.0f);
 
             bool crit = accuracy - randomizedDodge > 0.5;
 
@@ -564,15 +573,15 @@ namespace rat
 
             if (accuracy > randomizedDodge)
             {
-                double modifiedDamage = Math.Clamp(damage - (crit ? m_Armor * 0.25 : m_Armor), 0.0, double.MaxValue);
+                float modifiedDamage = Math.Clamp(damage - (crit ? m_Armor * 0.25f : m_Armor), 0.0f, float.MaxValue);
 
-                if (crit) m_Bleeding = true;
+                if (crit) Bleeding = true;
 
                 if (modifiedDamage > 0.0)
                 {
-                    m_CurrentHealth = Math.Clamp(m_CurrentHealth - modifiedDamage, 0.0, double.MaxValue);
+                    m_CurrentHealth = Math.Clamp(m_CurrentHealth - modifiedDamage, 0.0f, float.MaxValue);
 
-                    m_Residency.Bloody = true;
+                    Residency.Bloody = true;
                     int bloodParticles = crit ? 4 : 2;
 
                     if (m_CurrentHealth <= 0.0)
@@ -584,7 +593,7 @@ namespace rat
                     else
                     {
                         if (Name == "Jenkins" || attacker.Name == "Jenkins")
-                            Globals.Engine.MessageScreen.MessageLog.AppendMessage(crit ? (Name == "Jenkins" ? "\n" + m_Name + "'s mortality has been shaken...\nAnother blow may be fatal!\n" : "\nThe " + m_Name + " suffered a terrible blow...\nIt quivers with haggard anticipation!\n") : (Name == "Jenkins" ? "\n" : "\nThe ") + m_Name + " was merely wounded...\nThe gods demand more bloodshed!\n");
+                            Globals.Engine.MessageScreen.MessageLog.AppendMessage(crit ? (Name == "Jenkins" ? "" + m_Name + "'s mortality has been shaken... Another blow may be fatal!" : "The " + m_Name + " suffered a terrible blow... It quivers with haggard anticipation!") : (Name == "Jenkins" ? "" : "The ") + m_Name + " was merely wounded... The gods demand more bloodshed!");
                     }
 
                     for (int i = 0; i < bloodParticles; i++)
@@ -606,14 +615,14 @@ namespace rat
                 {
                     if (Name == "Jenkins" || attacker.Name == "Jenkins")
                         Globals.Engine.MessageScreen.MessageLog.AppendMessage(
-                            Name == "Jenkins" ? "\n" + Name + "' armor absorbed the blow...\nIts burnished surface remains stalwart!\n" : "\nThe " + Name + "'s armor absorbed the blow...\nStrike its weakpoints!\n");
+                            Name == "Jenkins" ? "" + Name + "' armor absorbed the blow... Its burnished surface remains stalwart!" : "The " + Name + "'s armor absorbed the blow... Strike its weakpoints!");
                 }
             }
             else
             {
                 if (Name == "Jenkins" || attacker.Name == "Jenkins")
                     Globals.Engine.MessageScreen.MessageLog.AppendMessage(
-                        (Name == "Jenkins" ? "\n" + Name + " evaded its attack..." : "\nThe " + Name + " evaded your attack...") + (Name == "Jenkins" ? "\nJenkins' confidence is bolstered!\n" : "\nIt goads you to strike again!\n"));
+                        (Name == "Jenkins" ? "" + Name + " evaded its attack..." : "The " + Name + " evaded your attack...") + (Name == "Jenkins" ? " Jenkins' confidence is bolstered!" : " It goads you to strike again!"));
             }
         }
 
@@ -660,7 +669,7 @@ namespace rat
             else
             {
                 m_CurrentHealth -= 0.5f * displacer.Damage;
-                Globals.Engine.MessageScreen.MessageLog.AppendMessage(m_Name == "Jenkins" ? "\n" : "\nThe" + m_Name + " was shoved into a wall!\n" + m_Name == "Jenkins" ? "He suffered blunt force trauma!" : "It suffered blunt force trauma!");
+                Globals.Engine.MessageScreen.MessageLog.AppendMessage(m_Name == "Jenkins" ? "" : "The" + m_Name + " was shoved into a wall!" + m_Name == "Jenkins" ? "He suffered blunt force trauma!" : "It suffered blunt force trauma!");
             }
         }
 

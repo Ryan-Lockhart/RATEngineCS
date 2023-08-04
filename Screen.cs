@@ -187,16 +187,28 @@ namespace rat
 
         public override void Draw(in GlyphSet glyphs)
         {
-            if (m_ShowLog)
+            if (m_ShowLog && !m_Log.Empty)
             {
-                string messages = "\nMessage Log: \n\n";
+                string messages = "";
 
-                foreach (var message in m_Log.Messages)
-                    if (message != "") { messages += message; }
+                for (int i = 0; i < m_Log.Messages.Count; i++)
+                {
+                    string message = m_Log.Messages[i];
 
-                Globals.Engine.DrawFixedLabel(messages, Transform, Size.One, Alignments.UpperCentered, Colors.White);
+                    if (message == "") continue;
+
+                    if (i != 0 && i != m_Log.Messages.Count)
+                        messages += "\n\n";
+
+                    messages += message;
+                }
+
+                messages += "\n\n\n";
+
+                Globals.Engine.DrawLabel(messages, Transform.position, Size.One, Alignments.LowerCentered, Colors.White);
             }
-            else Globals.Engine.DrawLabel($"Message Log: ({m_Log.LogSize})", Screens.LogTooltip, Size.One, Alignments.RightCentered, Colors.White);
+            
+            Globals.Engine.DrawLabel($"Message Log: ({m_Log.LogSize})", Screens.MessagesTooltip, Size.One, Alignments.LowerCentered, Colors.White);
         }
 
         public override bool Input()

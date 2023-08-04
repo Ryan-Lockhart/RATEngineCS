@@ -15,9 +15,7 @@ namespace rat
 
         public static Engine Engine;
 
-        private static ulong m_CurrentID;
-
-        public static ulong CurrentID => ++m_CurrentID;
+        public static ulong CurrentID;
 
         public static int CurrentTurn;
     }
