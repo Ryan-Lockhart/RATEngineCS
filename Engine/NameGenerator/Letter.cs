@@ -60,7 +60,7 @@
 
                 while (!done)
                 {
-                    ret = Globals.Alphabet[Random.Shared.Next(0, 26)];
+                    ret = Globals.Alphabet[rat.Globals.Generator.Next(0, 26)];
 
                     if ((needConsonant && ret.Vowel) || (needVowel && ret.Consonant))
                         done = false;
@@ -89,7 +89,7 @@
 
             public static Letter GetWeighted(int i, ProbabilityMatrix matrix)
             {
-                double rand = Random.Shared.NextDouble();
+                double rand = rat.Globals.Generator.NextDouble();
                 double total = 0.0;
 
                 for (int j = 0; j < Globals.Alphabet.Size; j++)

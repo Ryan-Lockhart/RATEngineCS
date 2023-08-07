@@ -8,7 +8,7 @@
                 Directory.SetCurrentDirectory("C:\\dev\\cs\\RATEngine");
             #endif
 
-            Globals.Engine = new Engine(1337);
+            Globals.Engine = new Engine();
 
             Globals.Engine.Initialize();
 

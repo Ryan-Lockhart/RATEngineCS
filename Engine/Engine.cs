@@ -45,7 +45,6 @@ namespace rat
 
         private bool m_PlayerActed;
 
-        private bool m_ShowLog;
         private bool m_ShowControls;
 
         private bool m_ActionSelect;
@@ -81,6 +80,11 @@ namespace rat
         {
             m_CurrentFlags.Remove(flag);
             RecalculateFlags();
+        }
+
+        public Engine()
+        {
+
         }
 
         public Engine(int seed)
@@ -374,7 +378,7 @@ namespace rat
                 {
                     m_PlayerActed = true;
 
-                    m_Map.RevealMap();
+                    m_Map.RevealMap(false);
                 }
             }
 

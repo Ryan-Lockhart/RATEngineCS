@@ -1,9 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Linq.Expressions;
-using System.Text;
-using System.Threading.Tasks;
+﻿using DiceNotation;
 
 using rat.Primitives;
 
@@ -47,6 +42,94 @@ namespace rat
 		Crouch,
 		Prone
     };
+    public enum Type
+    {
+        Strength,
+        Dexterity,
+        Constitution,
+        Intelligence,
+        Wisdom,
+        Charisma
+    }
+
+    public class Attribute
+    {
+        private int _value;
+        private const int _minimum = 3;
+        private const int _maximum = 30;
+
+        private Type _type;
+
+        public Attribute(Type type)
+        {
+            _type = type;
+            _value = new DiceExpression().Dice(6, 6).Roll().Value;
+        }
+
+        public Attribute(Type type, int value)
+        {
+            _type = type;
+            Value = value;
+        }
+
+        public int Value
+        {
+            get => _value;
+            set => _value = System.Math.Clamp(value, _minimum, _maximum);
+        }
+
+        public int Modifier => (int)System.Math.Floor((Value - 10.0) / 2.0);
+
+        public Type Type => _type;
+        public override string ToString()
+        {
+            string ret = "";
+
+            ret += Type switch
+            {
+                Type.Strength => "STR",
+                Type.Dexterity => "DEX",
+                Type.Constitution => "CON",
+                Type.Intelligence => "INT",
+                Type.Wisdom => "WIS",
+                Type.Charisma => "CHA"
+            };
+
+            int mod = Modifier;
+
+            return ret + $": {Value} (" + (mod > 0 ? $"+{mod}" : $"{mod}");
+        }
+    }
+
+    public class Attributes
+    {
+        private Attribute _strength;
+        private Attribute _dexterity;
+        private Attribute _constitution;
+        private Attribute _intelligence;
+        private Attribute _wisdom;
+        private Attribute _charisma;
+
+        public Attributes()
+        {
+            _strength = new Attribute(Type.Strength);
+            _dexterity = new Attribute(Type.Dexterity);
+            _constitution = new Attribute(Type.Constitution);
+            _intelligence = new Attribute(Type.Intelligence);
+            _wisdom = new Attribute(Type.Wisdom);
+            _charisma = new Attribute(Type.Charisma);
+        }
+
+        public Attributes(int _str, int _dex, int _con, int _int, int _wis, int _cha)
+        {
+            _strength = new Attribute(Type.Strength, _str);
+            _dexterity = new Attribute(Type.Dexterity, _dex);
+            _constitution = new Attribute(Type.Constitution, _con);
+            _intelligence = new Attribute(Type.Intelligence, _int);
+            _wisdom = new Attribute(Type.Wisdom, _wis);
+            _charisma = new Attribute(Type.Charisma, _cha);
+        }
+    }
 
     public class Actor
     {
@@ -75,14 +158,15 @@ namespace rat
         protected bool m_Dead;
         protected bool m_Bleeding;
 
-        protected float m_MaxHealth;
-        protected float m_CurrentHealth;
+        protected int m_MaxHealth;
+        protected int m_CurrentHealth;
 
-        protected float m_Damage;
-        protected float m_Armor;
+        protected int m_BaseAC;
 
-        protected float m_Accuracy;
-        protected float m_Dodge;
+        protected int m_XP;
+        protected int m_Level;
+
+        protected Attributes m_Attributes;
 
         public ulong ID { get => m_ID; set => m_ID = value; }
 
@@ -109,30 +193,41 @@ namespace rat
 
         public Stance Stance { get => m_Stance; set => m_Stance = value; }
 
-        public int Reach { get => m_Reach; set => m_Reach = value; }
+        public int Reach { get => m_Reach; protected set => m_Reach = value; }
 
         public bool Alive => !Dead;
-        public bool Dead { get => m_Dead; set => m_Dead = value; }
+        public bool Dead { get => m_Dead; protected set => m_Dead = value; }
 
-        public bool Bleeding { get => m_Bleeding; set => m_Bleeding = value; }
+        public bool Bleeding { get => m_Bleeding; protected set => m_Bleeding = value; }
 
-        public float MaxHealth { get => m_MaxHealth; set => m_MaxHealth = value; }
-        public float CurrentHealth
+        public int MaxHealth { get => m_MaxHealth; protected set => m_MaxHealth = value; }
+
+        public int CurrentHealth
         {
             get => m_CurrentHealth;
-            set => m_CurrentHealth = System.Math.Min(value, MaxHealth);
+            protected set => m_CurrentHealth = System.Math.Min(value, MaxHealth);
         }
 
-        public float Damage { get => m_Damage; set => m_Damage = value; }
-        public float Armor { get => m_Armor; set => m_Armor = value; }
-
-        public float Accuracy { get => m_Accuracy; set => m_Accuracy = value; }
-        public float Dodge { get => m_Dodge; set => m_Dodge = value; }
-
-        public Actor(Cell? startingCell, string name, Species species, in Glyph glyph, int reach, float health, float damage, float armor, float accuracy, float dodge, bool randomize, bool isAI = true)
+        public int Level => m_Level;
+        public int XP
         {
-            if (startingCell == null) throw new ArgumentNullException(nameof(startingCell));
-            else if (startingCell.Occupied) throw new ArgumentException(nameof(startingCell));
+            get { return m_XP; }
+            protected set
+            {
+                m_XP = value;
+            }
+        }
+
+        public Attributes Attributes { get => m_Attributes; protected set => m_Attributes = value; }
+
+        public Actor(Cell? startingCell, string name, Species species, in Glyph glyph, int reach, bool randomize, bool isAI = true)
+        {
+            if (startingCell == null)
+                throw new ArgumentNullException($"{nameof(startingCell)} is null!");
+            else if (startingCell.Parent == null)
+                throw new ArgumentException($"{nameof(startingCell)} is an island!");
+            else if (startingCell.Occupied)
+                throw new ArgumentException($"{nameof(startingCell)} is not vacant!");
 
             m_Parent = startingCell.Parent;
 
@@ -158,11 +253,7 @@ namespace rat
             m_MaxHealth = health * (randomize ? Globals.Generator.NextRangeSingle(0.75f, 1.25f) : 1.0f);
             m_CurrentHealth = MaxHealth;
 
-            m_Damage = damage * (randomize ? Globals.Generator.NextRangeSingle(0.75f, 1.25f) : 1.0f);
-            m_Armor = armor * (randomize ? Globals.Generator.NextRangeSingle(0.75f, 1.25f) : 1.0f);
 
-            m_Accuracy = accuracy * (randomize ? Globals.Generator.NextRangeSingle(0.75f, 1.25f) : 1.0f);
-            m_Dodge = dodge * (randomize ? Globals.Generator.NextRangeSingle(0.75f, 1.25f) : 1.0f);
 
             m_Path = new Stack<Point>();
         }
@@ -171,7 +262,8 @@ namespace rat
         {
             m_Parent = map;
 
-            var randomCell = m_Parent!.FindOpen();
+            var randomCell = m_Parent.FindOpen();
+
             if (randomCell == null) throw new Exception($"{nameof(map)} has no open cells!");
             else if (randomCell.Occupied) throw new Exception($"{nameof(randomCell)} is not vacant!");
 
@@ -208,8 +300,6 @@ namespace rat
 
         public virtual void Update(in Engine engine)
         {
-            if (Parent == null) return;
-
             if (Alive)
 			    m_Dead = m_CurrentHealth <= 0;
 
@@ -305,12 +395,12 @@ namespace rat
                 if (WithinReach(Target.Position)) Act(Target.Position, false);
                 else
                 {
-                    //Act(Point.Direction(Position, Target.Position), true);
+                    Act(Point.Direction(Position, Target.Position), true);
 
-                    m_Path = Parent.CalculatePath(Position, Target.Position);
+                    //m_Path = Parent.CalculatePath(Position, Target.Position);
 
-                    if (HasPath && m_Path!.Count > 0)
-                        Act(m_Path.Pop(), false);
+                    //if (HasPath && m_Path!.Count > 0)
+                    //    Act(m_Path.Pop(), false);
                 }
             }
             else if (m_Path == null || m_Path.Count <= 0)
@@ -338,8 +428,6 @@ namespace rat
 
         public virtual void Act(in Point position, bool offset = true)
         {
-            if (Parent == null || Residency == null) throw new Exception("Orphaned actors cannot act!");
-
             if (Bleeding) Bleed(0.025f);
 
             if (Dead) return;
@@ -370,8 +458,6 @@ namespace rat
 
         public virtual void Act(in Point position, Action action, bool offset = true)
         {
-            if (Parent == null || Residency == null) throw new Exception("Orphaned actors cannot act!");
-
             if (Bleeding) Bleed(0.025f);
 
             if (Dead) return;
@@ -458,8 +544,6 @@ namespace rat
 
         protected virtual void Move(in Coord where)
         {
-            if (Parent == null) return;
-
             if (!WithinReach(where)) return;
 
             Cell? cell = Parent[where];
@@ -513,8 +597,6 @@ namespace rat
 
         protected virtual void Attack(in Point where)
         {
-            if (Parent == null) return;
-
             if (!WithinReach(where)) return;
 
             var cell = Parent[where];
@@ -528,13 +610,16 @@ namespace rat
 
 		protected virtual void Attack(Actor? what)
         {
+            // Must have been the wind
             if (what == null) return;
+            // Don't attack yourself, idiot
             if (what == this)
             {
                 Target = null;
                 return;
             }
 
+            // Defend yourself!
             Target = what;
 
             float randomizedAccuracy = Math.Clamp(m_Accuracy * Globals.Generator.NextRangeSingle(0.5f, 1.5f), 0.0f, 3.0f);

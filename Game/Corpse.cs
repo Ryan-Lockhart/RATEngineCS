@@ -93,7 +93,7 @@ namespace rat
             m_Actor = actor;
             m_PlaceOfDeath = actor.Residency;
             m_TimeOfDeath = Globals.CurrentTurn;
-            m_Observed = false;
+            m_Observed = Globals.Engine.Player.Dead;
             m_Resurrectable = ressurectable;
             m_TimeOfDecay = m_TimeOfDeath + decayTime;
         }

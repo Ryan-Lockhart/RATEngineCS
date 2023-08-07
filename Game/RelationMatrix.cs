@@ -140,6 +140,10 @@ namespace rat
         {
             int currentBias = 0;
 
+            if (origin.Species.Parent == target.Species.Parent)
+                return 200;
+            else return -200;
+
             // NPCs should be hostile to the player
             if (origin.IsAI != target.IsAI)
                 currentBias -= 75;
@@ -148,57 +152,6 @@ namespace rat
             if (origin.Species == target.Species)
                 currentBias += 50;
             else currentBias -= 50;
-
-            bool originIsWraith = origin.Name == "Wraith";
-            bool targetIsWraith = target.Name == "Wraith";
-
-            bool originIsDraugr = origin.Name == "Draugr";
-            bool targetIsDraugr = target.Name == "Draugr";
-
-            bool originIsUndead = originIsWraith || originIsDraugr;
-            bool targetIsUndead = targetIsWraith || targetIsDraugr;
-
-            // Wraiths and draugr are only friendly to each other
-            if (originIsUndead && targetIsUndead)
-                return 200;
-            else if ((originIsUndead && !targetIsUndead) || (!originIsUndead && targetIsUndead))
-                return -200;
-
-            bool originIsBasilisk = origin.Name == "Basilisk";
-            bool targetIsBasilisk = target.Name == "Basilisk";
-
-            bool originIsSerpentman = origin.Name == "Serpentman";
-            bool targetIsSerpentman = target.Name == "Serpentman";
-
-            bool originIsReptilian = originIsSerpentman || originIsBasilisk;
-            bool targetIsReptilian = targetIsSerpentman || targetIsBasilisk;
-
-            // Serpentmen and basilisks are only friendly to each other
-            if (originIsReptilian && targetIsReptilian)
-                return 200;
-            else if ((originIsReptilian && !targetIsReptilian) || (!originIsReptilian && targetIsReptilian))
-                return -200;
-
-            bool originIsGremlin = origin.Name == "Gremlin";
-            bool targetIsGremlin = target.Name == "Gremlin";
-
-            bool originIsGoblin = origin.Name == "Goblin";
-            bool targetIsGoblin = target.Name == "Goblin";
-
-            bool originIsOrk = origin.Name == "Ork";
-            bool targetIsOrk = target.Name == "Ork";
-
-            bool originIsTroll = origin.Name == "Troll";
-            bool targetIsTroll = target.Name == "Troll";
-
-            bool originIsGreenskin = originIsGremlin || originIsGoblin || originIsOrk || originIsTroll;
-            bool targetIsGreenskin = targetIsGremlin || targetIsGoblin || targetIsOrk || targetIsTroll;
-
-            // Gremlins, goblins, orks and troll are only friendly to each other
-            if (originIsGreenskin && targetIsGreenskin)
-                return 200;
-            else if ((originIsGreenskin && !targetIsGreenskin) || (!originIsGreenskin && targetIsGreenskin))
-                return -200;
 
             return currentBias;
         }

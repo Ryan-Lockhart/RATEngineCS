@@ -10,7 +10,6 @@ using rat.Constants;
 using rat.Primitives;
 
 using Color = rat.Primitives.Color;
-using GoRogue.GameFramework;
 
 namespace rat
 {

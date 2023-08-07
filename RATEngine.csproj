@@ -10,9 +10,8 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="GoRogue" Version="2.6.4" />
-    <PackageReference Include="Raylib-cs" Version="4.5.0.1" />
-    <PackageReference Include="ShaiRandom" Version="0.0.2" />
+    <PackageReference Include="EdCanHack.DiceNotation" Version="0.2.0" />
+    <PackageReference Include="Raylib-cs" Version="4.5.0.3" />
   </ItemGroup>
 
   <ItemGroup>
