@@ -111,9 +111,12 @@ namespace rat
         public void SummonEnemies(int amount)
         {
             var enemies = new List<Actor>();
+            var names = new List<string>(NameGenerator.Globals.Basic.GenerateNames(amount, true));
 
             for (int i = 0; i < amount; i++)
             {
+                string name = names[i];
+
                 // 0.666% chance to generate a wraith
                 // 75% chance to generate a Gremlin, Goblin, or Ork
                 // 25% chance to generate a Troll, Draugr, Basilisk, or Serpentman
@@ -126,56 +129,56 @@ namespace rat
                 {
                     0 => new Actor
                     (
-                        Globals.Engine.Map, "Gremlin", "A dimunitive creature with a cunning disposition",
+                        Globals.Engine.Map, name, Clades.Greenskin["Gremlin"],
                         new Glyph(Characters.Entity[Cardinal.Central], Colors.BrightYellow),
                         1, 1.5f, 0.65f, 0.0f, 0.266f, 0.475f, true
                     ),
 
                     1 => new Actor
                     (
-                        Globals.Engine.Map, "Goblin", "A dexterous and selfish humanoid",
+                        Globals.Engine.Map, name, Clades.Greenskin["Goblin"],
                         new Glyph(Characters.Entity[Cardinal.Central], Colors.LightGreen),
                         1, 3.5f, 1.25f, 0.5f, 0.375f, 0.675f, true
                     ),
 
                     2 => new Actor
                     (
-                        Globals.Engine.Map, "Ork", "A brutal and violent humanoid",
+                        Globals.Engine.Map, name, Clades.Greenskin["Ork"],
                         new Glyph(Characters.Entity[Cardinal.Central], Colors.BrightOrange),
                         1, 12.5f, 3.5f, 1.25f, 0.666f, 0.275f, true
                     ),
 
                     3 => new Actor
                     (
-                        Globals.Engine.Map, "Troll", "A giant humaniod of great strength",
+                        Globals.Engine.Map, name, Clades.Greenskin["Troll"],
                         new Glyph(Characters.Entity[Cardinal.Central], Colors.BrightRed),
                         1, 25.0f, 12.5f, 2.5f, 0.125f, 0.114f, true
                     ),
 
                     4 => new Actor
                     (
-                        Globals.Engine.Map, "Draugr", "An undead servant of a wraith",
+                        Globals.Engine.Map, name, Clades.Undead["Draugr"],
                         new Glyph(Characters.Entity[Cardinal.Central], Colors.DarkMarble),
                         1, 7.5f, 2.5f, 5.0f, 0.675f, 0.221f, true
                     ),
 
                     5 => new Actor
                     (
-                        Globals.Engine.Map, "Basilisk", "A large hexapedal reptile of terrible power",
+                        Globals.Engine.Map, name, Clades.Reptilian["Basilisk"],
                         new Glyph(Characters.Entity[Cardinal.Central], Colors.Intrite),
                         1, 35.0f, 12.75f, 11.25f, 0.325f, 0.257f, true
                     ),
 
                     6 => new Actor
                     (
-                        Globals.Engine.Map, "Serpentman", "A slithering humanoid with superior agility",
+                        Globals.Engine.Map, name, Clades.Reptilian["Serpentman"],
                         new Glyph(Characters.Entity[Cardinal.Central], Colors.BrightBlue),
                         1, 17.5f, 7.5f, 3.75f, 0.525f, 0.621f, true
                     ),
 
                     7 => new Actor
                     (
-                        Globals.Engine.Map, "Wraith", "An eldritch abomination! Woe upon thee...",
+                        Globals.Engine.Map, name, Clades.Undead["Wraith"],
                         new Glyph(Characters.Entity[Cardinal.Central], Colors.BrightMagenta),
                         2, 125.0f, 75.0f, 30.0f, 0.75f, 0.975f, true
                     ),

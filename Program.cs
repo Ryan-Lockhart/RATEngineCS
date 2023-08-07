@@ -4,6 +4,10 @@
     {
         static void Main(string[] args)
         {
+            #if DEBUG
+                Directory.SetCurrentDirectory("C:\\dev\\cs\\RATEngine");
+            #endif
+
             Globals.Engine = new Engine(1337);
 
             Globals.Engine.Initialize();
@@ -18,6 +22,7 @@
             }
 
             Globals.Engine.Close();
+            NameGenerator.Globals.Basic.Save();
         }
     }
 }

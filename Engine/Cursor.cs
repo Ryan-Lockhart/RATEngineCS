@@ -193,7 +193,7 @@ namespace rat
                 {
                     if (Actor != null)
                     {
-                        text = $"{Transform.position}, {Actor.Name}\n{Actor.Description}";
+                        text = $"{Transform.position}, {Actor.Name} the {Actor.Species.Name} \n{Actor.Species.Description}";
 
                         if (Actor != Globals.Engine.Player)
                         {
@@ -204,52 +204,52 @@ namespace rat
                         }
                     }
                     else text = $"{Transform.position}, {(Cell != null ? Cell.State : " ??? ")}";
-
-                    var corpses = Cell!.Corpses;
-
-                    if (corpses != null)
-                    {
-                        if (corpses.Count > 0)
-                        {
-                            text += "\n\nCorpses:";
-
-                            if (Settings.UseCorpseLimit)
-                            {
-                                int i = 0;
-
-                                foreach (var corpse in corpses)
-                                {
-                                    if (corpse == null || !corpse.Observed)
-                                        continue;
-
-                                    i++;
-
-                                    var actor = corpse.Actor;
-                                    if (actor != null) { text += "\n " + actor.Name; }
-
-                                    if (i > Settings.CorpseLimit) break;
-                                }
-
-                                if (corpses.Count > Settings.CorpseLimit)
-                                    text += $"\n +{corpses.Count - Settings.CorpseLimit} more...";
-                            }
-                            else
-                            {
-                                foreach (var corpse in corpses)
-                                {
-                                    if (corpse == null || !corpse.Observed) continue;
-                                    var actor = corpse.Actor;
-                                    if (actor != null) { text += "\n " + actor.Name; }
-                                }
-                            }
-                        }
-                    }
                 }
                 else if (Cell.Explored)
                 {
                     text = $"{Transform.position}, {(Cell != null ? Cell.State : "\"???\"")}";
                 }
                 else text = Transform.position + ", ???";
+
+                var corpses = Cell!.Corpses;
+
+                if (corpses != null)
+                {
+                    if (corpses.Count > 0)
+                    {
+                        text += "\n\nCorpses:";
+
+                        if (Settings.UseCorpseLimit)
+                        {
+                            int i = 0;
+
+                            foreach (var corpse in corpses)
+                            {
+                                if (corpse == null || !corpse.Observed)
+                                    continue;
+
+                                i++;
+
+                                var actor = corpse.Actor;
+                                if (actor != null) { text += $"\n {actor.Name} the {actor.Species.Name}"; }
+
+                                if (i > Settings.CorpseLimit) break;
+                            }
+
+                            if (corpses.Count > Settings.CorpseLimit)
+                                text += $"\n +{corpses.Count - Settings.CorpseLimit} more...";
+                        }
+                        else
+                        {
+                            foreach (var corpse in corpses)
+                            {
+                                if (corpse == null || !corpse.Observed) continue;
+                                var actor = corpse.Actor;
+                                if (actor != null) { text += $"\n {actor.Name} the {actor.Species.Name}"; }
+                            }
+                        }
+                    }
+                }
             }
             else
             {
@@ -271,18 +271,12 @@ namespace rat
 
         public bool Input()
         {
-            if (Raylib.IsMouseButtonPressed(MouseButton.MOUSE_BUTTON_LEFT))
+            if (Actor != null)
             {
-                if (Cell != null && Cell.HasCorpses)
-                    try
-                    {
-                        foreach (var corpse in Cell.Corpses)
-                            corpse.Resurrect(true);
-                    }
-                    catch
-                    {
-
-                    }
+                if (Raylib.IsMouseButtonPressed(MouseButton.MOUSE_BUTTON_LEFT))
+                    NameGenerator.Globals.Basic.Approve(Actor.Name);
+                else if (Raylib.IsMouseButtonPressed(MouseButton.MOUSE_BUTTON_LEFT))
+                    NameGenerator.Globals.Basic.Reject(Actor.Name);
             }
 
             return false;

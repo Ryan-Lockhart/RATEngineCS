@@ -166,7 +166,7 @@ namespace rat
 
             m_Player = new Actor
             (
-                Map, "Jenkins", "A spry lad clad in armor and blade",
+                Map, "Jenkins", Clades.Humanoid["Human"],
                 Glyphs.ASCII.Player,
                 1, 10.0f, 5.0f, 7.5f, 0.50f, 0.75f, false, false
             );
@@ -409,8 +409,10 @@ namespace rat
             Raylib.ClearBackground(Colors.Black);
 
             MapScreen.Draw(GameSet);
-            MessageScreen.Draw(UISet);
+
             m_Cursor.Draw(Map, GameSet);
+
+            MessageScreen.Draw(UISet);
 
             string text =
                 $"{(m_Player != null ? m_Player.Name : "???")}:\n" +

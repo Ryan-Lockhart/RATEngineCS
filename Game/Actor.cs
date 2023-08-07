@@ -55,7 +55,8 @@ namespace rat
         protected bool m_AI;
 
         protected string m_Name;
-        protected string m_Description;
+
+        protected Species m_Species;
 
         protected Map m_Parent;
         protected Cell m_Residency;
@@ -88,7 +89,8 @@ namespace rat
         public bool IsAI { get => m_AI; set => m_AI = value; }
 
         public string Name { get => m_Name; set => m_Name = value; }
-        public string Description { get => m_Description; set => m_Description = value; }
+
+        public Species Species { get => m_Species; set => m_Species = value; }
 
         public Map Parent { get => m_Parent; set => m_Parent = value; }
         public Cell  Residency { get => m_Residency; set => m_Residency = value; }
@@ -127,7 +129,7 @@ namespace rat
         public float Accuracy { get => m_Accuracy; set => m_Accuracy = value; }
         public float Dodge { get => m_Dodge; set => m_Dodge = value; }
 
-        public Actor(Cell? startingCell, string name, string description, in Glyph glyph, int reach, float health, float damage, float armor, float accuracy, float dodge, bool randomize, bool isAI = true)
+        public Actor(Cell? startingCell, string name, Species species, in Glyph glyph, int reach, float health, float damage, float armor, float accuracy, float dodge, bool randomize, bool isAI = true)
         {
             if (startingCell == null) throw new ArgumentNullException(nameof(startingCell));
             else if (startingCell.Occupied) throw new ArgumentException(nameof(startingCell));
@@ -144,7 +146,7 @@ namespace rat
             m_AI = isAI;
 
             m_Name = name;
-            m_Description = description;
+            m_Species = species;
 
             m_Glyph = glyph;
 
@@ -165,7 +167,7 @@ namespace rat
             m_Path = new Stack<Point>();
         }
 
-        public Actor(in Map map, string name, string description, in Glyph glyph, int reach, float health, float damage, float armor, float accuracy, float dodge, bool randomize, bool isAI = true)
+        public Actor(in Map map, string name, Species species, in Glyph glyph, int reach, float health, float damage, float armor, float accuracy, float dodge, bool randomize, bool isAI = true)
         {
             m_Parent = map;
 
@@ -183,7 +185,7 @@ namespace rat
             m_AI = isAI;
 
             m_Name = name;
-            m_Description = description;
+            m_Species = species;
 
             m_Glyph = glyph;
 

@@ -220,12 +220,12 @@ namespace rat
 
             if (m_ShowLog)
             {
-                if (Cursor.ScreenPosition.x < (Screens.ScreenScale * 96.0) * 0.95)
+                if (Cursor.ScreenPosition.y < (Screens.ScreenScale * 48.0) * 0.95)
                     m_ShowLog = false;
             }
             else
             {
-                if (Cursor.ScreenPosition.x > (Screens.ScreenScale * 96.0) * 0.95)
+                if (Cursor.ScreenPosition.y > (Screens.ScreenScale * 48.0) * 0.95)
                     m_ShowLog = true;
             }
 

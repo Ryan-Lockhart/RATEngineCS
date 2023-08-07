@@ -287,9 +287,9 @@ namespace rat
 
             if (Occupied && drawOccupant && Seen)
                 Occupant!.Draw(glyphSet, screenPosition);
-            else if (Vacant && Seen)
-                if (HasCorpses && CorpsesSeen)
-                    glyphSet.DrawGlyph(new Glyph(Constants.Characters.Corpse, Constants.Colors.White), drawPosition);
+            else if (HasCorpses && CorpsesSeen)
+                glyphSet.DrawGlyph(new Glyph(Constants.Characters.Corpse, Constants.Colors.White), drawPosition);
+
         }
 
         public virtual void Update()

@@ -144,8 +144,8 @@ namespace rat
             if (origin.IsAI != target.IsAI)
                 currentBias -= 75;
 
-            // Creatures with the same name should be friendlier
-            if (origin.Name == target.Name)
+            // Creatures with the same species should be friendlier
+            if (origin.Species == target.Species)
                 currentBias += 50;
             else currentBias -= 50;
 

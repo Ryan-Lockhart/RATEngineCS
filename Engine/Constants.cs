@@ -37,7 +37,7 @@ namespace rat
             public static readonly string EngineVersion = "v0.001";
             public static readonly string EngineDate = "07/17/2023";
 
-            public static readonly Size MapSize = new Size(32, 32);
+            public static readonly Size MapSize = new Size(256, 256);
             public static readonly Size BorderSize = Size.Max(MapSize * 0.025, Size.One);
 
             public static class MapGeneration
@@ -88,8 +88,8 @@ namespace rat
                 /// </summary>
                 public static readonly int MaximumEnemyTypes = 8;
 
-                public static readonly int MinimumInitialEnemies = 5;
-                public static readonly int MaximumInitialEnemies = 10;
+                public static readonly int MinimumInitialEnemies = 500;
+                public static readonly int MaximumInitialEnemies = 1000;
 
                 public static readonly float EnemyPopulationFactor = 5.0f;
 
